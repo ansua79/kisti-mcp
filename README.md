@@ -360,7 +360,7 @@ kisti-mcp-server/
 - ❌ 상업적 사용 금지
 - 💼 상업적 사용을 원하시는 경우 별도 라이선스가 필요합니다. 문의: [raezero@kisti.re.kr]
 
-자세한 내용은 [LICENSE](https://github.com/ansua79/kisti-mcp/LICENSE) 파일을 참조하세요.
+자세한 내용은 [LICENSE](https://github.com/ansua79/kisti-mcp/blob/main/LICENSE) 파일을 참조하세요.
 
 ## 문제 해결
 
