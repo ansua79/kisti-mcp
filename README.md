@@ -188,8 +188,7 @@ Claude Desktop 등의 MCP 클라이언트에서 kisti-mcp 가 정상 등록되�
 일반 : 인공지능 멀티모달 관련 논문 5개 찾아 요약해줘
 명시 : ScienceOn에서 인공지능 멀티모달 논문 검색해줘
 ```
-
-![[Pasted image 20250729101952.png]]
+<img width="461" height="369" alt="Image" src="https://github.com/user-attachments/assets/02e9d8f6-1807-47c6-a4fe-63cadcceca00" />
 
 관련 도구는 다음과 같이 사용할 수 있습니다:
 
