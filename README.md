@@ -179,7 +179,7 @@ Claude Deskop(윈도우) 기준 %APPDATA%\Claude\claude_desktop_config.json 파�
 - Claude Desktop 기준
 	- 작업관리자에서도 종료 후 재시작
 	- 검색 및 도구 : kisti    ⑦ 확인
-![[Pasted image 20250729101543.png]]
+<img width="462" height="370" alt="Image" src="https://github.com/user-attachments/assets/73c5a059-7911-4f8a-8e0b-1c3f09ba5d35" />
 
 ### 도구 사용
 
