@@ -1,0 +1,67 @@
+[project]
+name = "kisti-mcp-server"
+version = "0.1.0"
+description = "KISTI ScienceON MCP Server"
+readme = "README.md"
+license = {text = "CC-BY-NC-4.0"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=2.10.0",
+    "httpx>=0.25.0",
+    "pycryptodome>=3.19.0",
+]
+keywords = ["kisti", "scienceon", "mcp", "research", "papers"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Researchers",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/kisti-mcp-server"
+Repository = "https://github.com/yourusername/kisti-mcp-server"
+Issues = "https://github.com/yourusername/kisti-mcp-server/issues"
+
+[project.scripts]
+kisti-mcp-server = "kisti_mcp_server:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["kisti_mcp_server*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
