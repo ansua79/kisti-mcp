@@ -37,6 +37,13 @@ KISTI-Oriented Science&Mission-driven Agent
 
 #### uv 사용 (권장)
 
+0. 실행위치생성(예시 - C:\mcp\kisti-mcp)
+```bash
+cd c:\
+mkdir mcp
+cd mcp
+```
+   
 1. 저장소 클론:
 
 ```bash
