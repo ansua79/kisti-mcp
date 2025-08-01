@@ -1,5 +1,5 @@
-
 # KOSMA
+[![smithery badge](https://smithery.ai/badge/@ansua79/kisti-mcp)](https://smithery.ai/server/@ansua79/kisti-mcp)
 KISTI-Oriented Science&Mission-driven Agent
 
 ## *KISTI-MCP v0.1.7*
@@ -26,6 +26,14 @@ KISTI-Oriented Science&Mission-driven Agent
 | `search_scienceon_report_details`   | 보고서 상세 정보    | `cn`                   |
 
 ## 설치
+
+### Installing via Smithery
+
+To install kisti-mcp for Claude Desktop automatically via [Smithery](https://smithery.ai/server/kisti-mcp):
+
+```bash
+npx -y @smithery/cli install @ansua79/kisti-mcp --client claude
+```
 
 ### 요구사항
 
