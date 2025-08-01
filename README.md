@@ -384,14 +384,16 @@ kisti-mcp-server/
     - `.env` 파일이 올바르게 설정되었는지 확인
     - 환경변수 값에 따옴표나 공백이 없는지 확인
 
+
 ## KISTI 초거대AI연구센터 AI플랫폼팀
 
 KISTI의 초거대AI연구센터는 2023년 12월 KISTI는 생성형 거대 언어 모델 'KONI(KISTI Open Natural Intelligence)'의 첫선을 토대로 2024년 3월 정식 출범한 부서이며, **AI플랫폼팀은 AI모델 및 Agent 서비스 기술 개발**을 담당하고 있습니다.
 
+
 ## 관련 링크
 
 - [SpectraBench](https://github.com/gwleee/SpectraBench) - Intelligent Scheduling System for Large Language Model Benchmarking
-- [KONI:KISTI Open Neural Intelligence](https://huggingface.co/KISTI-KONI) - KISTI's large language models
+- [KONI:KISTI Open Neural Intelligence](https://huggingface.co/KISTI-KONI) - KISTI 과학기술정보 특화 거대언어생성모델
 - [KISTI ScienceON](https://scienceon.kisti.re.kr/)
 
 
