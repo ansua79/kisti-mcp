@@ -25,6 +25,9 @@ KISTI-Oriented Science&Mission-driven Agent
 | `search_scienceon_reports`          | 보고서 목록 검색    | `query`, `max_results` |
 | `search_scienceon_report_details`   | 보고서 상세 정보    | `cn`                   |
 
+- [KONI:KISTI Open Neural Intelligence](https://huggingface.co/KISTI-KONI) - KISTI's large language models
+- [SpectraBench](https://github.com/gwleee/SpectraBench) - Intelligent Scheduling System for Large Language Model Benchmarking
+
 ## 설치
 
 ### 요구사항
