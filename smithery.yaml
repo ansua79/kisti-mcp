@@ -1,0 +1,29 @@
+# Smithery configuration file: https://smithery.ai/docs/build/project-config
+
+startCommand:
+  type: stdio
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => ({ command: 'python', args: ['kisti-mcp-server.py'], env: { SCIENCEON_API_KEY: config.scienceonApiKey, SCIENCEON_CLIENT_ID: config.scienceonClientId, SCIENCEON_MAC_ADDRESS: config.scienceonMacAddress } })
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required:
+      - scienceonApiKey
+      - scienceonClientId
+      - scienceonMacAddress
+    properties:
+      scienceonApiKey:
+        type: string
+        description: KISTI ScienceON API Key
+      scienceonClientId:
+        type: string
+        description: KISTI ScienceON Client ID
+      scienceonMacAddress:
+        type: string
+        description: MAC Address registered with KISTI
+  exampleConfig:
+    scienceonApiKey: ABC123DEF456
+    scienceonClientId: CLIENTID7890
+    scienceonMacAddress: 00-14-22-01-23-45
