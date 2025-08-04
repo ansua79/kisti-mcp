@@ -1,10 +1,11 @@
 
-# KOSMA
+# KOSMA Project
 KISTI-Oriented Science&Mission-driven Agent
 
 ## *KISTI-MCP v0.1.7*
 
-한국과학기술정보연구원(KISTI)가 서비스하는 다양한 플랫폼의 OpenAPI를 활용할 수 있는 MCP서버입니다. 현재 ScienceON 의 논문, 특허, 보고서 API를 사용할 수 있습니다(2025-07-22)
+한국과학기술정보연구원(KISTI)가 서비스하는 다양한 플랫폼의 OpenAPI를 활용할 수 있는 MCP서버입니다. 
+현재 ScienceON 의 논문, 특허, 보고서 API를 사용할 수 있습니다(2025-07-22)
 
 ## 기능
 
@@ -24,6 +25,14 @@ KISTI-Oriented Science&Mission-driven Agent
 | `search_scienceon_patent_citations` | 특허 인용/피인용 관계 | `cn`                   |
 | `search_scienceon_reports`          | 보고서 목록 검색    | `query`, `max_results` |
 | `search_scienceon_report_details`   | 보고서 상세 정보    | `cn`                   |
+
+---
+
+## 🚧 개발 중: v0.2.10 (2025년 8월 예정)
+
+다음 버전에서는 **NTIS 플랫폼의 OpenAPI 3종**이 추가될 예정입니다.
+
+---
 
 ## 설치
 
