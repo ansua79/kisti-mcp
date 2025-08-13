@@ -1,7 +1,7 @@
 [project]
 name = "kisti-mcp-server"
-version = "0.1.7"
-description = "KOSMA/ KISTI-MCP Server"
+version = "0.2.10"
+description = "KISTI-MCP Server"
 readme = "README.md"
 license = {text = "CC-BY-NC-4.0"}
 authors = [
@@ -13,7 +13,7 @@ dependencies = [
     "httpx>=0.25.0",
     "pycryptodome>=3.19.0",
 ]
-keywords = ["kisti", "scienceon", "mcp", "research", "papers"]
+keywords = ["kisti", "mcp", "scienceon", "ntis", "research"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Researchers",
@@ -26,8 +26,8 @@ Homepage = "https://github.com/ansua79/kisti-mcp"
 Repository = "https://github.com/ansua79/kisti-mcp"
 Issues = "https://github.com/ansua79/kisti-mcp/issues"
 
-[project.scripts]
-kisti-mcp-server = "kisti-mcp-server:main"
+# [project.scripts]
+# kisti-mcp-server = "kisti-mcp-server:main"
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]
