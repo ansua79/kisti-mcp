@@ -17,7 +17,7 @@
 | `search_ntis_related_content_recommendations` | - 과제 연관콘텐츠 추천  |
 
 ## 사용예시 ##
-| ![KISTI MCP Logo](/media/KISTI-MCP.png) <br/> *KISTI MCP 논문검색 예시* | <video src="/media/[동영상]KISTI-MCP 논문검색.mp4" controls width="400"></video> <br/> *KISTI-MCP 논문검색 데모* |
+| ![KISTI MCP Logo](/media/KISTI-MCP.png) <br/> *KISTI MCP 논문검색 예시* | ![KISTI-MCP 논문검색 데모](/media/KISTI-MCP-demo.gif) <br/> *KISTI-MCP 논문검색 데모* |
 |---|---|
 
 ## 📜History
