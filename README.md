@@ -1,6 +1,6 @@
 # *KISTI-MCP*
 
-한국과학기술정보연구원(KISTI)이 서비스하는 다양한 플랫폼의 OpenAPI를 LLM이 활용할 수 있게 하는 MCP서버입니다.
+한국과학기술정보연구원(KISTI)이 서비스하는 다양한 플랫폼(ScienceON, NTIS, ...)의 OpenAPI를 LLM이 활용할 수 있게 하는 MCP서버입니다.
 ## 사용 가능한 도구(10개)
 
 | 도구명                                           | 기능             |
@@ -15,6 +15,10 @@
 | `search_ntis_rnd_project`                     | - 과제 검색        |
 | `search_ntis_science_tect_classifications`    | - 과학기술분류 추천    |
 | `search_ntis_related_content_recommendations` | - 과제 연관콘텐츠 추천  |
+
+## 사용예시 ##
+| ![KISTI MCP Logo](/media/KISTI-MCP.png) <br/> *KISTI MCP 논문검색 예시* | <video src="/media/[동영상]KISTI-MCP 논문검색.mp4" controls width="400"></video> <br/> *KISTI-MCP 논문검색 데모* |
+|---|---|
 
 ## 📜History
 
@@ -101,7 +105,7 @@ NTIS_CLASSIFICATION_API_KEY=your_ntis_api_key
 NTIS_RECOMMENDATION_API_KEY=your_ntis_api_key
 ```
 
-### 동작확인
+### 정상설치 동작확인
 ---
 - 실행(uv사용:권장)
 ```bash
@@ -168,7 +172,7 @@ INFO:__main__:NTIS API 인증 정보가 성공적으로 로드되었습니다.
   }
 }
 ```
-* 설치디렉토리명은 D:\mcp\kisti-mcp 등으로 설치환경에 따라 수정
+* 설치디렉토리명은 C:\mcp\kisti-mcp 등으로 설치환경에 따라 수정
 
 #### 클라이언트(Claude Desktop) 재시작
 - 작업관리자에서도 완전 종료 후 재시작
@@ -227,8 +231,9 @@ KISTI의 초거대AI연구센터는 2023년 12월 KISTI는 생성형 거대 언�
 문제가 있거나 질문이 있으시면 [Issues](https://github.com/ansua79/kisti-mcp/issues)에서 문의해주세요.
 
 ## 관련 링크
-
-- [SpectraBench](https://github.com/gwleee/SpectraBench) - Intelligent Scheduling System for Large Language Model Benchmarking
+- [KISTI AI Platform Team](https://github.com/KISTI-AI-Platform-Team/BlueSkyNova) - KISTI 초거대AI연구센터 AI플랫폼팀
 - [KONI:KISTI Open Neural Intelligence](https://huggingface.co/KISTI-KONI) - KISTI 과학기술정보 특화 거대언어생성모델
+- [DOREA:Document-Oriented Reasoning and Exploration Assistant](https://github.com/Byun11/Dorea-pdf-ai) 
+- [SpectraBench](https://github.com/gwleee/SpectraBench) - Intelligent Scheduling System for Large Language Model Benchmarking
 - [KISTI ScienceON](https://scienceon.kisti.re.kr/)
 - [KISTI NTIS](https://www.ntis.go.kr)
