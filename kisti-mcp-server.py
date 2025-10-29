@@ -4,7 +4,7 @@ KOSMA
 (KISTI-Oriented Science&Mission-driven Agent)
 KISTI가 서비스하는 다양한 플랫폼의 OpenAPI를 활용할 수 있습니다.
 KISTI-MCP Server 
-v0.2.10 - ScienceON + NTIS 통합 검색 서비스 
+v0.2.10a - ScienceON + NTIS 통합 검색 서비스 (NTIS API 키 통합) 
 """
 import logging
 import os
@@ -114,41 +114,24 @@ class NTISClient(BaseAPIClient):
         
         # .env 파일에서 환경변수 로드
         env_vars = load_env_file()
-        
-        # 환경변수에서 인증 정보 읽기 (서비스별 분리)
-        self.project_api_key = os.getenv("NTIS_RND_PROJECT_API_KEY") or env_vars.get("NTIS_RND_PROJECT_API_KEY", "")
-        self.classification_api_key = os.getenv("NTIS_CLASSIFICATION_API_KEY") or env_vars.get("NTIS_CLASSIFICATION_API_KEY", "")
-        self.recommendation_api_key = os.getenv("NTIS_RECOMMENDATION_API_KEY") or env_vars.get("NTIS_RECOMMENDATION_API_KEY", "")
-        
+
+        # 환경변수에서 인증 정보 읽기 (통합 API 키)
+        self.api_key = os.getenv("NTIS_API_KEY") or env_vars.get("NTIS_API_KEY", "")
+
         # 필수 정보 검증
         self._validate_credentials()
-    
+
     def _validate_credentials(self):
         """인증 정보 검증"""
-        missing_keys = []
-        if not self.project_api_key:
-            missing_keys.append("NTIS_RND_PROJECT_API_KEY")
-        if not self.classification_api_key:
-            missing_keys.append("NTIS_CLASSIFICATION_API_KEY")
-        if not self.recommendation_api_key:
-            missing_keys.append("NTIS_RECOMMENDATION_API_KEY")
-        
-        if missing_keys:
-            logger.warning(f"일부 NTIS API KEY가 설정되지 않았습니다: {', '.join(missing_keys)}")
-            logger.info("설정되지 않은 서비스는 비활성화됩니다.")
+        if not self.api_key:
+            logger.warning("NTIS API KEY가 설정되지 않았습니다: NTIS_API_KEY")
+            logger.info("NTIS 서비스가 비활성화됩니다.")
         else:
             logger.info("NTIS API 인증 정보가 성공적으로 로드되었습니다.")
-    
+
     def _get_api_key(self, target: str) -> str:
-        """서비스별 API KEY 반환"""
-        if target == "PROJECT":
-            return self.project_api_key
-        elif target == "CLASSIFICATION" or target == "CLASSIFICATION_DETAILED":
-            return self.classification_api_key
-        elif target == "RECOMMENDATION" or target == "RELATED_CONTENT":
-            return self.recommendation_api_key
-        else:
-            return ""
+        """API KEY 반환 (모든 서비스에서 동일한 키 사용)"""
+        return self.api_key
     
     async def get_token(self) -> bool:
         """NTIS는 토큰 발급이 필요하지 않음"""
@@ -2389,8 +2372,8 @@ async def search_ntis_rnd_projects(
     if ntis_search_service is None:
         return ("🚨 NTIS API 인증 정보가 설정되지 않았습니다.\n"
                ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
-               "필요한 변수: NTIS_RND_PROJECT_API_KEY")
-    
+               "필요한 변수: NTIS_API_KEY")
+
     return await ntis_search_service.search_projects(query, max_results)
 @mcp.tool()
 async def search_ntis_science_tech_classifications(
@@ -2434,7 +2417,7 @@ async def search_ntis_science_tech_classifications(
     if ntis_search_service is None:
         return ("🚨 NTIS API 인증 정보가 설정되지 않았습니다.\n"
                ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
-               "필요한 변수: NTIS_CLASSIFICATION_API_KEY")
+               "필요한 변수: NTIS_API_KEY")
     
     # 유효한 분류 타입 검증
     valid_types = ["standard", "health", "industry"]
@@ -2479,8 +2462,8 @@ async def search_ntis_related_content_recommendations(
     if ntis_search_service is None:
         return ("🚨 NTIS API 인증 정보가 설정되지 않았습니다.\n"
                ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
-               "필요한 변수: NTIS_RECOMMENDATION_API_KEY")
-    
+               "필요한 변수: NTIS_API_KEY")
+
     return await ntis_search_service.search_recommendations_by_id(pjt_id, max_results)
 def main():
     """메인 엔트리포인트"""
