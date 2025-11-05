@@ -1,59 +1,56 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
+*.class
 *.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+*.so
+*.dylib
+*.dll
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Environment variables
+# Virtual environments
 .env
 .venv
-env/
 venv/
 ENV/
-env.bak/
-venv.bak/
+env/
 
-# IDE
+# Build and distribution
+build/
+dist/
+*.egg
+*.whl
+
+# Project specific
+.env.backup
+.env.test
+.claude/
+CLAUDE.md
+debug_*.py
+test_all_*.py
+test_simple*.py
+test_user_query.py
+test_working_project.py
+CLEANUP_SUMMARY.md
+
+# IDE and OS
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Logs
 *.log
 
-# Testing
-.coverage
-.pytest_cache/
-.tox/
-.coverage.*
-coverage.xml
-*.cover
-.hypothesis/
-
-# Documentation
+# Documentation builds
 docs/_build/
+site/
