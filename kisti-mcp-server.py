@@ -3,8 +3,8 @@
 KOSMA
 (KISTI-Oriented Science&Mission-driven Agent)
 KISTI가 서비스하는 다양한 플랫폼의 OpenAPI를 활용할 수 있습니다.
-KISTI-MCP Server 
-v0.2.10a - ScienceON + NTIS 통합 검색 서비스 (NTIS API 키 통합) 
+KISTI-MCP Server
+v0.3.12 - ScienceON + NTIS + DataON 통합 검색 서비스 (DataON 연구데이터 검색 추가)
 """
 import logging
 import os
@@ -25,19 +25,29 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 # MCP 서버 초기화
 mcp = FastMCP("KISTI-MCP Server")
+# 환경변수 캐시 (중복 로딩 방지)
+_env_cache = None
+_env_loaded = False
+
 def load_env_file(env_file_path: str = ".env") -> Dict[str, str]:
     """
-    .env 파일에서 환경변수를 로드합니다.
-    
+    .env 파일에서 환경변수를 로드합니다. (캐시 사용)
+
     Args:
         env_file_path: .env 파일 경로
-        
+
     Returns:
         환경변수 딕셔너리
     """
+    global _env_cache, _env_loaded
+
+    # 이미 로드된 경우 캐시 반환
+    if _env_loaded:
+        return _env_cache or {}
+
     env_vars = {}
     env_path = Path(env_file_path)
-    
+
     if env_path.exists():
         try:
             with open(env_path, 'r', encoding='utf-8') as f:
@@ -52,7 +62,10 @@ def load_env_file(env_file_path: str = ".env") -> Dict[str, str]:
             logger.error(f".env 파일 로드 중 오류: {str(e)}")
     else:
         logger.warning(f".env 파일을 찾을 수 없습니다: {env_path}")
-    
+
+    _env_cache = env_vars
+    _env_loaded = True
+
     return env_vars
 class AESTestClass:
     """ScienceON사용을 위한 AES 암호화 클래스"""
@@ -933,6 +946,249 @@ class ScienceONClient(BaseAPIClient):
                 "message": f"XML 파싱 오류: {str(e)}",
                 "raw_result": xml_result
             }
+
+# DataON 전용 구현
+class DataONClient(BaseAPIClient):
+    """KISTI DataON API 클라이언트"""
+
+    def __init__(self):
+        super().__init__("https://dataon.kisti.re.kr")
+
+        # .env 파일에서 환경변수 로드
+        env_vars = load_env_file()
+
+        # 환경변수에서 인증 정보 읽기
+        self.research_data_api_key = os.getenv("DataON_ResearchData_API_KEY") or env_vars.get("DataON_ResearchData_API_KEY", "")
+        self.research_data_metadata_api_key = os.getenv("DataON_ResearchDataMetadata_API_KEY") or env_vars.get("DataON_ResearchDataMetadata_API_KEY", "")
+
+        # 필수 정보 검증
+        self._validate_credentials()
+
+    def _validate_credentials(self):
+        """인증 정보 검증"""
+        missing = []
+        if not self.research_data_api_key:
+            missing.append("DataON_ResearchData_API_KEY")
+        if not self.research_data_metadata_api_key:
+            missing.append("DataON_ResearchDataMetadata_API_KEY")
+
+        if missing:
+            logger.warning(f"DataON API KEY가 설정되지 않았습니다: {', '.join(missing)}")
+            logger.info("DataON 서비스가 비활성화됩니다.")
+        else:
+            logger.info("DataON API 인증 정보가 성공적으로 로드되었습니다.")
+
+    async def get_token(self) -> bool:
+        """DataON은 토큰 발급이 필요하지 않음 (API KEY 직접 사용)"""
+        return True
+
+    async def search(self, query: str, target: str = "RESEARCH_DATA", max_results: int = 10,
+                    from_pos: int = 0, sort_con: str = "", sort_arr: str = "desc") -> Dict[str, Any]:
+        """
+        DataON 연구데이터 검색
+
+        Args:
+            query: 검색 키워드
+            target: 검색 대상 (RESEARCH_DATA 또는 RESEARCH_DATA_DETAIL)
+            max_results: 최대 결과 수 (기본 10)
+            from_pos: 시작 위치 (기본 0)
+            sort_con: 정렬 조건 (date, title 등)
+            sort_arr: 정렬 방향 (asc, desc)
+        """
+        if target == "RESEARCH_DATA":
+            api_key = self.research_data_api_key
+        else:
+            api_key = self.research_data_metadata_api_key
+
+        if not api_key:
+            return {"error": True, "message": f"DataON API KEY가 설정되지 않았습니다: {target}"}
+
+        endpoint = "/rest/api/search/dataset/"
+        url = f"{self.base_url}{endpoint}"
+
+        params = {
+            "key": api_key,
+            "query": query,
+            "from": from_pos,
+            "size": min(max_results, 100)
+        }
+
+        # 선택적 파라미터 추가
+        if sort_con:
+            params["sortCon"] = sort_con
+        if sort_arr:
+            params["sortArr"] = sort_arr
+
+        logger.info(f"DataON 요청 URL: {url}")
+        logger.info(f"파라미터: {params}")
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, params=params)
+
+                logger.info(f"DataON 응답 상태코드: {response.status_code}")
+                logger.info(f"DataON 응답 내용: {response.text[:500]}...")
+
+                if response.status_code == 200:
+                    return self._parse_json_response(response.text, target)
+                else:
+                    return {"error": True, "message": f"DataON API 요청 실패: {response.status_code}, 응답: {response.text[:200]}"}
+        except Exception as e:
+            logger.error(f"DataON API 요청 중 오류: {str(e)}")
+            return {"error": True, "message": f"DataON API 요청 중 오류: {str(e)}"}
+
+    async def get_details(self, svc_id: str) -> Dict[str, Any]:
+        """
+        DataON 연구데이터 상세 정보 조회
+
+        Args:
+            svc_id: 서비스 ID (데이터셋 고유 식별자)
+        """
+        if not self.research_data_metadata_api_key:
+            return {"error": True, "message": "DataON_ResearchDataMetadata_API_KEY가 설정되지 않았습니다"}
+
+        # PDF 매뉴얼에 따르면 svcId를 URL 경로에 포함
+        endpoint = f"/rest/api/search/dataset/{svc_id}"
+        url = f"{self.base_url}{endpoint}"
+
+        # key만 query parameter로 전달
+        params = {
+            "key": self.research_data_metadata_api_key
+        }
+
+        logger.info(f"DataON 상세조회 URL: {url}")
+        logger.info(f"파라미터: {params}")
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, params=params)
+
+                logger.info(f"DataON 응답 상태코드: {response.status_code}")
+                logger.info(f"DataON 응답 내용: {response.text[:500]}...")
+
+                if response.status_code == 200:
+                    return self._parse_json_response(response.text, "DETAIL")
+                else:
+                    return {"error": True, "message": f"DataON API 요청 실패: {response.status_code}, 응답: {response.text[:200]}"}
+        except Exception as e:
+            logger.error(f"DataON API 요청 중 오류: {str(e)}")
+            return {"error": True, "message": f"DataON API 요청 중 오류: {str(e)}"}
+
+    def _parse_json_response(self, json_result: str, target: str) -> Dict[str, Any]:
+        """DataON JSON 응답 파싱"""
+        try:
+            data = json.loads(json_result)
+
+            # 에러 응답 체크
+            response_info = data.get("response", {})
+            if response_info.get("status") == "error":
+                return {
+                    "error": True,
+                    "message": response_info.get("message", "알 수 없는 오류")
+                }
+
+            # 검색 결과인 경우
+            if target == "RESEARCH_DATA":
+                total_count = response_info.get("total count", 0)
+                records = data.get("records", [])
+
+                results = []
+                for record in records:
+                    # DataON API의 실제 필드명 사용
+                    # 작성자와 발행기관은 배열로 제공됨
+                    creators = record.get("dataset_creator_kor", [])
+                    creator_str = ", ".join(creators) if creators else ""
+
+                    publishers = record.get("dataset_pblshr", [])
+                    publisher_str = ", ".join(publishers) if publishers else ""
+
+                    result = {
+                        "svcId": record.get("svc_id", ""),
+                        "score": 0,  # DataON API는 score를 직접 제공하지 않음
+                        "title": record.get("dataset_title_kor", ""),
+                        "creator": creator_str,
+                        "publisher": publisher_str,
+                        "date": record.get("dataset_pub_dt_pc", ""),
+                        "description": record.get("dataset_expl_kor", ""),
+                        "subject": record.get("dataset_kywd_kor", ""),
+                        "type": record.get("dataset_type_pc", ""),
+                        "format": record.get("file_frmt_pc", []),
+                        "rights": record.get("dataset_cc_license_pc", ""),
+                        "coverage": record.get("dataset_data_loc", ""),
+                        "landing_page": record.get("dataset_lndgpg", ""),
+                        "doi": record.get("dataset_doi", "")
+                    }
+                    results.append(result)
+
+                return {
+                    "success": True,
+                    "total_count": total_count,
+                    "results": results
+                }
+
+            # 상세 정보인 경우
+            elif target == "DETAIL":
+                # 상세조회 API는 records가 단일 객체로 반환됨 (배열 아님)
+                records = data.get("records", {})
+
+                # records가 dict가 아니거나 비어있으면 에러
+                if not isinstance(records, dict) or not records:
+                    return {
+                        "error": True,
+                        "message": "해당 svcId의 데이터를 찾을 수 없습니다"
+                    }
+
+                record = records
+
+                # 작성자, 기여자, 발행기관은 배열로 제공됨
+                creators = record.get("dataset_creator_kor", [])
+                creator_str = ", ".join(creators) if creators else ""
+
+                contributors = record.get("dataset_cntrbtr_kor", [])
+                contributor_str = ", ".join(contributors) if contributors else ""
+
+                publishers = record.get("dataset_pblshr", [])
+                publisher_str = ", ".join(publishers) if publishers else ""
+
+                return {
+                    "success": True,
+                    "result": {
+                        "svcId": record.get("svc_id", ""),
+                        "title": record.get("dataset_title_kor", ""),
+                        "creator": creator_str,
+                        "publisher": publisher_str,
+                        "date": record.get("dataset_pub_dt_pc", ""),
+                        "description": record.get("dataset_expl_kor", ""),
+                        "subject": record.get("dataset_kywd_kor", ""),
+                        "type": record.get("dataset_type_pc", ""),
+                        "format": record.get("file_frmt_pc", []),
+                        "rights": record.get("dataset_cc_license_pc", ""),
+                        "coverage": record.get("dataset_data_loc", ""),
+                        "relation": record.get("pjt_nm_kor", []),
+                        "language": record.get("dataset_main_lang_pc", ""),
+                        "identifier": record.get("dataset_doi", ""),
+                        "contributor": contributor_str,
+                        "landing_page": record.get("dataset_lndgpg", ""),
+                        "platform": record.get("cltfm_kor", "")
+                    }
+                }
+            else:
+                return {"error": True, "message": f"지원되지 않는 target 타입: {target}"}
+
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON 파싱 오류: {str(e)}")
+            return {
+                "error": True,
+                "message": f"JSON 파싱 오류: {str(e)}",
+                "raw_result": json_result[:500]
+            }
+        except Exception as e:
+            logger.error(f"응답 처리 중 오류: {str(e)}")
+            return {
+                "error": True,
+                "message": f"응답 처리 중 오류: {str(e)}"
+            }
+
 class NTISFormatter(BaseResultFormatter):
     """NTIS 결과 포매터"""
     
@@ -1786,6 +2042,153 @@ class ScienceONFormatter(BaseResultFormatter):
             result_text += f"\n총 {len(citations)}건 중 10건만 표시되었습니다."
         
         return result_text
+
+class DataONFormatter(BaseResultFormatter):
+    """DataON 결과 포매터"""
+
+    def format_search_results(self, results: List[Dict], query: str, total_count: int, result_type: str) -> str:
+        """DataON 연구데이터 검색 결과 포맷팅"""
+        if not results:
+            return f"'{query}'에 대한 연구데이터 검색 결과가 없습니다."
+
+        formatted_results = []
+        formatted_results.append(f"**DataON 연구데이터 검색 결과**")
+        formatted_results.append(f"검색어: '{query}' | 총 {total_count}건 중 {len(results)}건 표시\n")
+
+        for i, data in enumerate(results, 1):
+            svc_id = data.get("svcId", "ID 없음")
+            title = data.get("title", "제목 없음")
+            creator = data.get("creator", "작성자 없음")
+            publisher = data.get("publisher", "발행기관 없음")
+            date = data.get("date", "날짜 없음")
+            data_type = data.get("type", "")
+            score = data.get("score", 0)
+            description = data.get("description", "")
+            subject = data.get("subject", [])
+
+            # 제목과 기본 정보
+            formatted_results.append(f"\n**[{i}] {title}**")
+            formatted_results.append(f"  - **svcId**: {svc_id}")
+            formatted_results.append(f"  - **작성자**: {creator}")
+            formatted_results.append(f"  - **발행기관**: {publisher}")
+            formatted_results.append(f"  - **날짜**: {date}")
+
+            if data_type and data_type.strip():
+                formatted_results.append(f"  - **타입**: {data_type}")
+
+            if score:
+                formatted_results.append(f"  - **관련도 점수**: {score:.2f}")
+
+            # 주제어
+            if subject:
+                if isinstance(subject, list):
+                    subject_str = ", ".join(subject[:5])  # 최대 5개까지 표시
+                else:
+                    subject_str = str(subject)
+                formatted_results.append(f"  - **주제어**: {subject_str}")
+
+            # 설명 (간략히)
+            if description and description.strip():
+                clean_desc = description.replace('\n', ' ').replace('\\r\\n', ' ').strip()
+                if len(clean_desc) > 150:
+                    clean_desc = clean_desc[:150] + "..."
+                formatted_results.append(f"  - **설명**: {clean_desc}")
+
+            # DOI와 랜딩 페이지 링크
+            doi = data.get("doi", "")
+            if doi and doi.strip():
+                formatted_results.append(f"  - **DOI**: {doi}")
+
+            landing_page = data.get("landing_page", "")
+            if landing_page and landing_page.strip():
+                formatted_results.append(f"  - **데이터 링크**: {landing_page}")
+
+        return "\n".join(formatted_results)
+
+    def format_detail_result(self, result: Dict, identifier: str) -> str:
+        """DataON 연구데이터 상세 정보 포맷팅"""
+        if not result:
+            return f"svcId '{identifier}'에 대한 상세 정보를 찾을 수 없습니다."
+
+        svc_id = result.get("svcId", identifier)
+        title = result.get("title", "제목 없음")
+        creator = result.get("creator", "작성자 없음")
+        publisher = result.get("publisher", "발행기관 없음")
+        date = result.get("date", "날짜 없음")
+        data_type = result.get("type", "")
+        data_format = result.get("format", "")
+        language = result.get("language", "")
+        rights = result.get("rights", "")
+        coverage = result.get("coverage", "")
+        description = result.get("description", "")
+        subject = result.get("subject", [])
+        relation = result.get("relation", "")
+        identifier_field = result.get("identifier", "")
+        contributor = result.get("contributor", "")
+
+        formatted_result = []
+        formatted_result.append(f"**DataON 연구데이터 상세정보**\n")
+        formatted_result.append(f"**제목**: {title}")
+        formatted_result.append(f"**svcId**: {svc_id}\n")
+
+        # 메타데이터 정보
+        formatted_result.append(f"📋 **메타데이터**")
+        formatted_result.append(f"  - **작성자**: {creator}")
+
+        if contributor and contributor.strip():
+            formatted_result.append(f"  - **기여자**: {contributor}")
+
+        formatted_result.append(f"  - **발행기관**: {publisher}")
+        formatted_result.append(f"  - **날짜**: {date}")
+
+        if data_type and (data_type.strip() if isinstance(data_type, str) else data_type):
+            formatted_result.append(f"  - **타입**: {data_type}")
+
+        # format은 리스트일 수 있음
+        if data_format:
+            if isinstance(data_format, list):
+                format_str = ", ".join(data_format)
+                if format_str and format_str.strip():
+                    formatted_result.append(f"  - **포맷**: {format_str}")
+            elif isinstance(data_format, str) and data_format.strip():
+                formatted_result.append(f"  - **포맷**: {data_format}")
+
+        if language and language.strip():
+            formatted_result.append(f"  - **언어**: {language}")
+
+        if coverage and coverage.strip():
+            formatted_result.append(f"  - **범위**: {coverage}")
+
+        if rights and rights.strip():
+            formatted_result.append(f"  - **권리**: {rights}")
+
+        # 주제어
+        if subject:
+            if isinstance(subject, list):
+                subject_str = ", ".join(subject)
+            else:
+                subject_str = str(subject)
+            formatted_result.append(f"\n🏷️ **주제어**: {subject_str}")
+
+        # 설명
+        if description and description.strip():
+            clean_desc = description.replace('\n', ' ').strip()
+            formatted_result.append(f"\n📝 **설명**:\n{clean_desc}")
+
+        # 관련 정보 (리스트일 수 있음)
+        if relation:
+            if isinstance(relation, list):
+                relation_str = ", ".join(relation)
+                if relation_str and relation_str.strip():
+                    formatted_result.append(f"\n🔗 **관련 정보**: {relation_str}")
+            elif isinstance(relation, str) and relation.strip():
+                formatted_result.append(f"\n🔗 **관련 정보**: {relation}")
+
+        if identifier_field and identifier_field.strip():
+            formatted_result.append(f"\n🆔 **식별자**: {identifier_field}")
+
+        return "\n".join(formatted_result)
+
 # 서비스 클래스 (비즈니스 로직)
 class SearchService:
     """검색 서비스"""
@@ -2197,6 +2600,79 @@ class NTISSearchService:
         except Exception as e:
             logger.error(f"NTIS 연관콘텐츠 추천 중 오류: {str(e)}")
             return f"연관콘텐츠 추천 중 오류가 발생했습니다: {str(e)}"
+
+class DataONSearchService:
+    """DataON 검색 서비스"""
+
+    def __init__(self, client: DataONClient, formatter: DataONFormatter):
+        self.client = client
+        self.formatter = formatter
+
+    async def search_research_data(self, query: str, max_results: int = 10,
+                                  from_pos: int = 0, sort_con: str = "", sort_arr: str = "desc") -> str:
+        """
+        연구데이터 검색
+
+        Args:
+            query: 검색 키워드
+            max_results: 최대 결과 수 (기본 10)
+            from_pos: 시작 위치 (기본 0)
+            sort_con: 정렬 조건 (date, title 등)
+            sort_arr: 정렬 방향 (asc, desc)
+        """
+        try:
+            if not await self.client.get_token():
+                return "🚨 DataON API 연결에 실패했습니다."
+
+            result = await self.client.search(
+                query=query,
+                target="RESEARCH_DATA",
+                max_results=max_results,
+                from_pos=from_pos,
+                sort_con=sort_con,
+                sort_arr=sort_arr
+            )
+
+            if result.get("error"):
+                return f"🚨 DataON API 오류: {result.get('message', '알 수 없는 오류')}"
+
+            if result.get("success") and result.get("results"):
+                research_data_list = result["results"]
+                total_count = result.get("total_count", 0)
+                return self.formatter.format_search_results(research_data_list, query, total_count, "research_data")
+            else:
+                return f"'{query}'에 대한 연구데이터 검색 결과가 없습니다."
+
+        except Exception as e:
+            logger.error(f"DataON 연구데이터 검색 중 오류: {str(e)}")
+            return f"연구데이터 검색 중 오류가 발생했습니다: {str(e)}"
+
+    async def get_research_data_details(self, svc_id: str) -> str:
+        """
+        연구데이터 상세 정보 조회
+
+        Args:
+            svc_id: 서비스 ID (데이터셋 고유 식별자)
+        """
+        try:
+            if not await self.client.get_token():
+                return "🚨 DataON API 연결에 실패했습니다."
+
+            result = await self.client.get_details(svc_id)
+
+            if result.get("error"):
+                return f"🚨 DataON API 오류: {result.get('message', '알 수 없는 오류')}"
+
+            if result.get("success") and result.get("result"):
+                detail_info = result["result"]
+                return self.formatter.format_detail_result(detail_info, svc_id)
+            else:
+                return f"svcId '{svc_id}'에 대한 상세 정보를 찾을 수 없습니다."
+
+        except Exception as e:
+            logger.error(f"DataON 연구데이터 상세조회 중 오류: {str(e)}")
+            return f"연구데이터 상세조회 중 오류가 발생했습니다: {str(e)}"
+
 # 전역 서비스 인스턴스
 try:
     scienceon_client = ScienceONClient()
@@ -2213,6 +2689,16 @@ try:
 except Exception as e:
     logger.error(f"NTIS 서비스 초기화 실패: {str(e)}")
     ntis_search_service = None
+
+# DataON 서비스 초기화
+try:
+    dataon_client = DataONClient()
+    dataon_formatter = DataONFormatter()
+    dataon_search_service = DataONSearchService(dataon_client, dataon_formatter)
+except Exception as e:
+    logger.error(f"DataON 서비스 초기화 실패: {str(e)}")
+    dataon_search_service = None
+
 # MCP 함수들
 @mcp.tool()
 async def search_scienceon_papers(
@@ -2465,6 +2951,67 @@ async def search_ntis_related_content_recommendations(
                "필요한 변수: NTIS_API_KEY")
 
     return await ntis_search_service.search_recommendations_by_id(pjt_id, max_results)
+
+@mcp.tool()
+async def search_dataon_research_data(
+    query: str,
+    max_results: int = 10,
+    from_pos: int = 0,
+    sort_con: str = "",
+    sort_arr: str = "desc"
+) -> str:
+    """
+    KISTI DataON에서 연구데이터를 검색합니다. 키워드로 공개된 연구데이터를 검색하여 목록을 반환합니다.
+
+    Args:
+        query: 검색할 키워드 (연구자명, 연구주제, 데이터명 등)
+        max_results: 최대 결과 수 (기본값: 10, 최대 100)
+        from_pos: 시작 위치 (페이징용, 기본값: 0)
+        sort_con: 정렬 조건 (예: "date", "title" 등, 기본값: 공백 - 관련도순)
+        sort_arr: 정렬 방향 ("asc" 또는 "desc", 기본값: "desc")
+
+    Returns:
+        연구데이터 목록 검색 결과 (제목, 작성자, 발행기관, 설명, svcId 등 포함)
+
+    Examples:
+        - search_dataon_research_data("이승우", 10)
+        - search_dataon_research_data("기후변화", 20, 0, "date", "desc")
+    """
+    if dataon_search_service is None:
+        return ("🚨 DataON API 인증 정보가 설정되지 않았습니다.\n"
+               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "필요한 변수: DataON_ResearchData_API_KEY, DataON_ResearchDataMetadata_API_KEY")
+
+    return await dataon_search_service.search_research_data(query, max_results, from_pos, sort_con, sort_arr)
+
+@mcp.tool()
+async def search_dataon_research_data_details(
+    svc_id: str
+) -> str:
+    """
+    KISTI DataON에서 특정 연구데이터의 상세 정보를 조회합니다.
+    연구데이터 검색에서 얻은 svcId를 사용하여 해당 데이터의 자세한 메타데이터를 가져옵니다.
+
+    사용법:
+    1. 먼저 search_dataon_research_data로 연구데이터를 검색하여 svcId를 찾습니다
+    2. 찾은 svcId를 이 함수에 입력합니다
+
+    Args:
+        svc_id: 연구데이터 고유 식별번호 (검색 결과에서 얻은 svcId)
+
+    Returns:
+        연구데이터의 상세 메타데이터 (작성자, 기여자, 발행기관, 주제어, 포맷, 권리, 관련정보 등)
+
+    Examples:
+        - search_dataon_research_data_details("KISTI-OAK-1234567890")
+    """
+    if dataon_search_service is None:
+        return ("🚨 DataON API 인증 정보가 설정되지 않았습니다.\n"
+               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "필요한 변수: DataON_ResearchData_API_KEY, DataON_ResearchDataMetadata_API_KEY")
+
+    return await dataon_search_service.get_research_data_details(svc_id)
+
 def main():
     """메인 엔트리포인트"""
     if search_service is not None:

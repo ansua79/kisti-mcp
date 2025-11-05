@@ -354,7 +354,7 @@ wheels = [
 
 [[package]]
 name = "kisti-mcp-server"
-version = "0.2.10"
+version = "0.3.12"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },

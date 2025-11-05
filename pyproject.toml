@@ -1,7 +1,7 @@
 [project]
 name = "kisti-mcp-server"
-version = "0.2.10a"
-description = "KOSMA/ KISTI-MCP Server"
+version = "0.3.12"
+description = "KISTI-MCP Server - MCP server for KISTI OpenAPI (ScienceON, NTIS, DataON)"
 readme = "README.md"
 license = {text = "CC-BY-NC-4.0"}
 authors = [
@@ -13,7 +13,7 @@ dependencies = [
     "httpx>=0.25.0",
     "pycryptodome>=3.19.0",
 ]
-keywords = ["kisti", "scienceon", "mcp", "research", "papers"]
+keywords = ["kisti", "scienceon","ntis","dataon", "mcp", "research", "papers","report","research data"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Researchers",
