@@ -1779,7 +1779,8 @@ class ScienceONFormatter(BaseResultFormatter):
             abstract = patent.get("Abstract", "")
             patent_status = patent.get("PatentStatus", "")
             ipc = patent.get("IPC", "")
-            
+            cn = patent.get("CN", "")
+
             result_text = f"**{title}**\n  - 출원인: {applicants}\n  - 출원일: {appl_date}"
             
             if publ_date and publ_date.strip():
@@ -1790,7 +1791,10 @@ class ScienceONFormatter(BaseResultFormatter):
             
             if ipc and ipc.strip():
                 result_text += f"\n  - IPC분류: {ipc}"
-            
+
+            if cn and cn.strip():
+                result_text += f"\n🔗 특허번호(CN): {cn}"
+
             # 초록 처리
             if abstract and len(abstract.strip()) > 0:
                 clean_abstract = re.sub(r'<[^>]+>', '', abstract)
@@ -1803,8 +1807,9 @@ class ScienceONFormatter(BaseResultFormatter):
             formatted_results.append(result_text + "\n")
         
         return (f"**'{query}' 특허 검색 결과** "
-                f"(총 {total_count:,}건 중 {len(formatted_results)}건 표시):\n\n" + 
-                "\n".join(formatted_results))
+                f"(총 {total_count:,}건 중 {len(formatted_results)}건 표시):\n\n" +
+                "\n".join(formatted_results) +
+                "\n💡 특정 특허의 상세정보를 원하면 CN번호를 이용해 특허상세보기를 사용하세요.")
     
     def _format_report_results(self, reports: List[Dict], query: str, total_count: int) -> str:
         """보고서 검색 결과 포맷팅"""
@@ -1877,7 +1882,8 @@ class ScienceONFormatter(BaseResultFormatter):
         result_text += f"👤 **저자**: {author}\n"
         result_text += f"📅 **연도**: {year}\n"
         result_text += f"📖 **저널**: {journal}\n"
-        
+        result_text += f"🔗 **ScienceON 링크**: https://scienceon.kisti.re.kr/srch/selectPORSrchArticle.do?cn={cn}\n"
+
         if doi and doi.strip():
             result_text += f"🔗 **DOI**: {doi}\n"
         
@@ -1889,14 +1895,11 @@ class ScienceONFormatter(BaseResultFormatter):
             clean_abstract = re.sub(r'<[^>]+>', '', abstract)
             clean_abstract = clean_abstract.replace('&amp;#xD;', '').replace('&amp;', '&').strip()
             result_text += f"\n📝 **초록**:\n{clean_abstract}\n"
-        
+
         # URL 정보
         if fulltext_url and fulltext_url.strip():
-            result_text += f"\n  - **원문 URL**: {fulltext_url}\n"
-        
-        if content_url and content_url.strip():
-            result_text += f"  - **ScienceON 링크**: {content_url}\n"
-        
+            result_text += f"\n📄 **원문 URL**: {fulltext_url}\n"
+
         # 관련 논문 정보
         if similar_title and similar_title.strip():
             result_text += f"\n  - **유사 논문**: {similar_title[:200]}...\n"
@@ -1933,7 +1936,8 @@ class ScienceONFormatter(BaseResultFormatter):
         result_text += f"👥 **출원인**: {applicants}\n"
         result_text += f"📅 **출원일**: {appl_date}\n"
         result_text += f"📰 **공개일**: {publ_date}\n"
-        
+        result_text += f"🔗 **ScienceON 링크**: https://scienceon.kisti.re.kr/srch/selectPORSrchPatent.do?cn={cn}\n"
+
         if patent_status and patent_status.strip():
             result_text += f"**특허상태**: {patent_status}\n"
         
@@ -1948,10 +1952,6 @@ class ScienceONFormatter(BaseResultFormatter):
             clean_abstract = re.sub(r'<[^>]+>', '', abstract)
             clean_abstract = clean_abstract.replace('&amp;#xD;', '').replace('&amp;', '&').strip()
             result_text += f"\n📝 **초록**:\n{clean_abstract}\n"
-        
-        # URL 정보
-        if content_url and content_url.strip():
-            result_text += f"\n  - **ScienceON 링크**: {content_url}\n"
         
         # 관련 특허 정보
         if similar_title and similar_title.strip():
@@ -1986,7 +1986,8 @@ class ScienceONFormatter(BaseResultFormatter):
         result_text += f"👤 **저자**: {author}\n"
         result_text += f"📅 **발행연도**: {pubyear}\n"
         result_text += f"🏢 **발행기관**: {publisher}\n"
-        
+        result_text += f"🔗 **ScienceON 링크**: https://scienceon.kisti.re.kr/srch/selectPORSrchReport.do?cn={cn}\n"
+
         if keywords and keywords.strip():
             result_text += f"  - **키워드**: {keywords}\n"
         
@@ -1998,11 +1999,8 @@ class ScienceONFormatter(BaseResultFormatter):
         
         # URL 정보
         if fulltext_url and fulltext_url.strip():
-            result_text += f"\n  - **원문 URL**: {fulltext_url}\n"
-        
-        if content_url and content_url.strip():
-            result_text += f"  - **ScienceON 링크**: {content_url}\n"
-        
+            result_text += f"\n📄 **원문 URL**: {fulltext_url}\n"
+
         # 인용 정보
         if cited_paper_info and cited_paper_info.strip():
             result_text += f"\n  - **인용 논문**: {cited_paper_info[:200]}...\n"
@@ -2220,7 +2218,33 @@ class SearchService:
         except Exception as e:
             logger.error(f"논문 검색 중 오류: {str(e)}")
             return f"논문 검색 중 오류가 발생했습니다: {str(e)}"
-    
+
+    async def get_paper_details(self, cn: str) -> str:
+        """논문 상세 정보 조회"""
+        try:
+            # 토큰 발급
+            if not await self.client.get_token():
+                return "🚨 토큰 발급에 실패했습니다. 인증 정보를 확인해주세요."
+
+            # 상세 정보 조회
+            result = await self.client.get_details(cn, "ARTI")
+
+            if result.get("error"):
+                return f"🚨 API 오류: {result.get('error_message', '알 수 없는 오류')}"
+
+            if result.get("success") and result.get("papers"):
+                papers = result["papers"]
+                if papers:
+                    return self.formatter.format_detail_result(papers[0], cn, "paper")
+                else:
+                    return f"CN번호 '{cn}'에 해당하는 논문을 찾을 수 없습니다."
+            else:
+                return f"CN번호 '{cn}'에 대한 상세정보를 가져올 수 없습니다."
+
+        except Exception as e:
+            logger.error(f"논문 상세보기 중 오류: {str(e)}")
+            return f"논문 상세보기 중 오류가 발생했습니다: {str(e)}"
+
     async def search_patents(self, query: str, max_results: int = 10) -> str:
         """특허 검색"""
         try:
