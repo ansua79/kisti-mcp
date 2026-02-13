@@ -29,6 +29,7 @@ dist/
 # Project specific
 .env.backup
 .env.test
+.sisyphus/
 .claude/
 CLAUDE.md
 debug_*.py
