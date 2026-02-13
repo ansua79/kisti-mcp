@@ -1,0 +1,16 @@
+Rename Plan - Wheel Smoke
+
+Timestamp: 2026-02-13T13:22:00Z
+
+Build
+- Command: uv build
+- Result: OK
+- Note: setuptools warns `project.license` table deprecation (does not fail build)
+
+Isolated import test
+- Command: uv run --isolated --no-project --with dist/kisti_mcp-0.3.12-py3-none-any.whl python -c "import kisti_mcp; print('WHEEL_IMPORT_OK')"
+- Result: WHEEL_IMPORT_OK
+
+Isolated console-script smoke
+- Command: uv run --isolated --no-project --with dist/kisti_mcp-0.3.12-py3-none-any.whl kisti-mcp
+- Result: process running after 1s (terminated intentionally)

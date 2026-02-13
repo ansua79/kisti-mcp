@@ -154,10 +154,24 @@ DataON_ResearchDataMetadata_API_KEY=your_dataon_detail_api_key
 
 ### MCP 서버 실행(동작 확인)
 
-#### uv 사용(권장)
+#### uvx 사용(가장 간단)
+
+PyPI 배포 전(태그 기준 실행):
 
 ```bash
-uv run python kisti-mcp-server.py
+uvx --from "git+https://github.com/ansua79/kisti-mcp@vX.Y.Z" kisti-mcp
+```
+
+PyPI 배포 후:
+
+```bash
+uvx kisti-mcp
+```
+
+#### uv 사용(개발/기여자 권장)
+
+```bash
+uv run python kisti_mcp.py
 ```
 
 ```
@@ -193,7 +207,7 @@ INFO:__main__:DataON API 인증 정보가 성공적으로 로드되었습니다.
 #### 전통적인 방법
 
 ```bash
-python kisti-mcp-server.py
+python kisti_mcp.py
 ```
 
 
@@ -210,13 +224,18 @@ Claude Deskop(윈도우) 기준 %APPDATA%\Claude\claude_desktop_config.json 파�
         "--directory",
         "설치디렉토리명", 
         "run",
-        "kisti-mcp-server.py"
+        "python",
+        "kisti_mcp.py"
       ]
     }
   }
 }
 ```
 - 설치디렉토리명은 C:/mcp/kisti-mcp 등으로, 로컬 기준에 따라 수정
+
+마이그레이션 참고:
+- 기존 문서의 `kisti-mcp-server.py`는 `kisti_mcp.py`로 변경되었습니다.
+- 향후 배포(uvx/PyPI) 이후에는 `kisti-mcp` 명령을 기본으로 사용합니다.
 
 ### 클라이언트 재시작
 

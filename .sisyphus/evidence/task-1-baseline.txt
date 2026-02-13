@@ -1,0 +1,32 @@
+Task 1 Baseline Evidence
+
+Upstream import
+- Remote: https://github.com/ansua79/kisti-mcp (branch: main)
+- Checked out commit: ca61743be656912556ea43c76edba02ab692ec5f
+
+Repository contents present
+- README.md
+- pyproject.toml
+- uv.lock
+- .env.example
+- kisti-mcp-server.py
+- media/
+
+uv sync
+- uv version: 0.8.0 (0b2357294 2025-07-17)
+- Python: CPython 3.11.13
+- Result: OK (created .venv; installed deps)
+
+Smoke import (no server run)
+- Method: importlib.util.spec_from_file_location("kisti_mcp_server", "kisti-mcp-server.py")
+- Dummy env vars set:
+  - SCIENCEON_API_KEY
+  - SCIENCEON_CLIENT_ID
+  - SCIENCEON_MAC_ADDRESS
+  - NTIS_API_KEY
+  - DataON_ResearchData_API_KEY
+  - DataON_ResearchDataMetadata_API_KEY
+- Result: IMPORT_OK
+
+Notes
+- Console displayed garbled Korean log text due to encoding; smoke still succeeded.

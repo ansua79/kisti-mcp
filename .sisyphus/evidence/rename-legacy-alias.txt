@@ -1,0 +1,14 @@
+Rename Plan - Legacy Alias Smoke
+
+Timestamp: 2026-02-13T13:18:00Z
+
+Command
+- uv run kisti-mcp-server
+
+Result
+- Process running after 1s: YES
+- Note: process was terminated intentionally (stdio server blocks waiting for host)
+
+Output (stderr head, ASCII escaped)
+- INFO logs show `.env` loaded and services initialized
+- FastMCP banner present

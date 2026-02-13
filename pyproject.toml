@@ -1,9 +1,9 @@
 [project]
-name = "kisti-mcp-server"
-version = "0.3.12"
+name = "kisti-mcp"
+version = "0.3.12b0"
 description = "KISTI-MCP Server - MCP server for KISTI OpenAPI (ScienceON, NTIS, DataON)"
 readme = "README.md"
-license = {text = "CC-BY-NC-4.0"}
+license = "CC-BY-NC-4.0"
 authors = [
     {name = "raezero", email = "raezero@kisti.re.kr"}
 ]
@@ -26,9 +26,34 @@ Homepage = "https://github.com/ansua79/kisti-mcp"
 Repository = "https://github.com/ansua79/kisti-mcp"
 Issues = "https://github.com/ansua79/kisti-mcp/issues"
 
-# [project.scripts]
-# kisti-mcp-server = "kisti-mcp-server:main"
+[project.scripts]
+kisti-mcp = "kisti_mcp:main"
+kisti-mcp-server = "kisti_mcp:main"
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["kisti_mcp"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "respx>=0.22.0",
+    "ruff>=0.15.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+extend-exclude = ["kisti_mcp.py"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
