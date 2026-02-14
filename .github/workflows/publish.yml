@@ -1,4 +1,9 @@
 name: Publish Python Package
+
+permissions:
+  contents: read
+  id-token: write
+
 on:
   # 실제 PyPI 배포: 버전 태그 푸시 시
   push:
@@ -29,7 +34,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Build
-        run: uv build
+        run: rm -rf dist && uv build
       - name: Upload dist artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -54,6 +59,10 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+          verbose: true
+          print-hash: true
+          attestations: false
   publish-pypi:
     name: Publish to PyPI (Trusted Publishing)
     needs: build
