@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "kisti": {
+      "command": "uvx",
+      "args": ["kisti-mcp"],
+      "env": {
+        "SCIENCEON_API_KEY": "YOUR_SCIENCEON_API_KEY",
+        "SCIENCEON_CLIENT_ID": "YOUR_SCIENCEON_CLIENT_ID",
+        "SCIENCEON_MAC_ADDRESS": "XX-XX-XX-XX-XX-XX",
+        "NTIS_API_KEY": "YOUR_NTIS_API_KEY",
+        "DataON_ResearchData_API_KEY": "YOUR_DATAON_SEARCH_API_KEY",
+        "DataON_ResearchDataMetadata_API_KEY": "YOUR_DATAON_DETAIL_API_KEY"
+      }
+    }
+  }
+}

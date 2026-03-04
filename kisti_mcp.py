@@ -29,9 +29,10 @@ mcp = FastMCP("KISTI-MCP Server")
 _env_cache = None
 _env_loaded = False
 
-def load_env_file(env_file_path: str = ".env") -> Dict[str, str]:
+def _load_env_file_fallback(env_file_path: str = ".env") -> Dict[str, str]:
     """
-    .env 파일에서 환경변수를 로드합니다. (캐시 사용)
+    .env 파일에서 환경변수를 로드합니다. (내부 fallback용, 캐시 사용)
+    프로세스 환경변수(os.getenv)가 우선이며, .env는 보조 수단입니다.
 
     Args:
         env_file_path: .env 파일 경로
@@ -41,7 +42,6 @@ def load_env_file(env_file_path: str = ".env") -> Dict[str, str]:
     """
     global _env_cache, _env_loaded
 
-    # 이미 로드된 경우 캐시 반환
     if _env_loaded:
         return _env_cache or {}
 
@@ -57,16 +57,36 @@ def load_env_file(env_file_path: str = ".env") -> Dict[str, str]:
                         if '=' in line:
                             key, value = line.split('=', 1)
                             env_vars[key.strip()] = value.strip()
-            logger.info(f".env 파일에서 {len(env_vars)}개의 환경변수를 로드했습니다.")
+            logger.info(f".env 파일에서 {len(env_vars)}개의 환경변수를 로드했습니다. (fallback)")
         except Exception as e:
-            logger.error(f".env 파일 로드 중 오류: {str(e)}")
+            logger.warning(f".env 파일 로드 중 오류: {str(e)}")
     else:
-        logger.warning(f".env 파일을 찾을 수 없습니다: {env_path}")
+        logger.debug(f".env 파일 없음 (정상 — 환경변수로 설정 가능): {env_path}")
 
     _env_cache = env_vars
     _env_loaded = True
 
     return env_vars
+
+
+def get_env(key: str, default: str = "") -> str:
+    """
+    환경변수를 조회합니다.
+    1순위: 프로세스 환경변수 (os.environ / Claude Desktop JSON env)
+    2순위: .env 파일 (개발용 fallback)
+
+    Args:
+        key: 환경변수 키
+        default: 기본값
+
+    Returns:
+        환경변수 값
+    """
+    value = os.getenv(key)
+    if value:
+        return value
+    env_vars = _load_env_file_fallback()
+    return env_vars.get(key, default)
 class AESTestClass:
     """ScienceON사용을 위한 AES 암호화 클래스"""
     
@@ -124,12 +144,9 @@ class NTISClient(BaseAPIClient):
     
     def __init__(self):
         super().__init__("https://www.ntis.go.kr")
-        
-        # .env 파일에서 환경변수 로드
-        env_vars = load_env_file()
 
         # 환경변수에서 인증 정보 읽기 (통합 API 키)
-        self.api_key = os.getenv("NTIS_API_KEY") or env_vars.get("NTIS_API_KEY", "")
+        self.api_key = get_env("NTIS_API_KEY")
 
         # 필수 정보 검증
         self._validate_credentials()
@@ -741,14 +758,11 @@ class ScienceONClient(BaseAPIClient):
     
     def __init__(self):
         super().__init__("https://apigateway.kisti.re.kr")
-        
-        # .env 파일에서 환경변수 로드
-        env_vars = load_env_file()
-        
+
         # 환경변수에서 인증 정보 읽기
-        self.api_key = os.getenv("SCIENCEON_API_KEY") or env_vars.get("SCIENCEON_API_KEY", "")
-        self.client_id = os.getenv("SCIENCEON_CLIENT_ID") or env_vars.get("SCIENCEON_CLIENT_ID", "")
-        self.mac_address = os.getenv("SCIENCEON_MAC_ADDRESS") or env_vars.get("SCIENCEON_MAC_ADDRESS", "")
+        self.api_key = get_env("SCIENCEON_API_KEY")
+        self.client_id = get_env("SCIENCEON_CLIENT_ID")
+        self.mac_address = get_env("SCIENCEON_MAC_ADDRESS")
         
         # 필수 정보 검증
         self._validate_credentials()
@@ -954,12 +968,9 @@ class DataONClient(BaseAPIClient):
     def __init__(self):
         super().__init__("https://dataon.kisti.re.kr")
 
-        # .env 파일에서 환경변수 로드
-        env_vars = load_env_file()
-
         # 환경변수에서 인증 정보 읽기
-        self.research_data_api_key = os.getenv("DataON_ResearchData_API_KEY") or env_vars.get("DataON_ResearchData_API_KEY", "")
-        self.research_data_metadata_api_key = os.getenv("DataON_ResearchDataMetadata_API_KEY") or env_vars.get("DataON_ResearchDataMetadata_API_KEY", "")
+        self.research_data_api_key = get_env("DataON_ResearchData_API_KEY")
+        self.research_data_metadata_api_key = get_env("DataON_ResearchDataMetadata_API_KEY")
 
         # 필수 정보 검증
         self._validate_credentials()
@@ -2741,7 +2752,7 @@ async def search_scienceon_papers(
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
-               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
     
     return await search_service.search_papers(query, max_results)
@@ -2760,7 +2771,7 @@ async def search_scienceon_paper_details(
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
-               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
     
     return await search_service.get_paper_details(cn)
@@ -2781,7 +2792,7 @@ async def search_scienceon_patents(
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
-               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
     
     return await search_service.search_patents(query, max_results)
@@ -2800,7 +2811,7 @@ async def search_scienceon_patent_details(
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
-               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
     
     return await search_service.get_patent_details(cn)
@@ -2819,7 +2830,7 @@ async def search_scienceon_patent_citations(
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
-               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
     
     return await search_service.get_patent_citations(cn)
@@ -2840,7 +2851,7 @@ async def search_scienceon_reports(
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
-               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
     
     return await search_service.search_reports(query, max_results)
@@ -2859,7 +2870,7 @@ async def search_scienceon_report_details(
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
-               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
     
     return await search_service.get_report_details(cn)
@@ -2881,7 +2892,7 @@ async def search_ntis_rnd_projects(
     """
     if ntis_search_service is None:
         return ("🚨 NTIS API 인증 정보가 설정되지 않았습니다.\n"
-               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: NTIS_API_KEY")
 
     return await ntis_search_service.search_projects(query, max_results)
@@ -2926,7 +2937,7 @@ async def search_ntis_science_tech_classifications(
     """
     if ntis_search_service is None:
         return ("🚨 NTIS API 인증 정보가 설정되지 않았습니다.\n"
-               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: NTIS_API_KEY")
     
     # 유효한 분류 타입 검증
@@ -2971,7 +2982,7 @@ async def search_ntis_related_content_recommendations(
     """
     if ntis_search_service is None:
         return ("🚨 NTIS API 인증 정보가 설정되지 않았습니다.\n"
-               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: NTIS_API_KEY")
 
     return await ntis_search_service.search_recommendations_by_id(pjt_id, max_results)
@@ -3003,7 +3014,7 @@ async def search_dataon_research_data(
     """
     if dataon_search_service is None:
         return ("🚨 DataON API 인증 정보가 설정되지 않았습니다.\n"
-               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: DataON_ResearchData_API_KEY, DataON_ResearchDataMetadata_API_KEY")
 
     return await dataon_search_service.search_research_data(query, max_results, from_pos, sort_con, sort_arr)
@@ -3031,16 +3042,26 @@ async def search_dataon_research_data_details(
     """
     if dataon_search_service is None:
         return ("🚨 DataON API 인증 정보가 설정되지 않았습니다.\n"
-               ".env 파일을 생성하거나 환경변수를 설정해주세요.\n"
+               "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: DataON_ResearchData_API_KEY, DataON_ResearchDataMetadata_API_KEY")
 
     return await dataon_search_service.get_research_data_details(svc_id)
 
 def main():
     """메인 엔트리포인트"""
+    active_services = []
     if search_service is not None:
+        active_services.append("ScienceON")
+    if ntis_search_service is not None:
+        active_services.append("NTIS")
+    if dataon_search_service is not None:
+        active_services.append("DataON")
+
+    if active_services:
+        logger.info(f"활성 서비스: {', '.join(active_services)}")
         mcp.run()
     else:
-        logger.error("환경변수 설정 후 다시 실행해주세요.")
+        logger.error("활성화된 서비스가 없습니다. 환경변수를 확인해주세요.")
+
 if __name__ == "__main__":
     main()
