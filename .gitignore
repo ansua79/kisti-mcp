@@ -1,49 +1,36 @@
-# Python
+# Byte-compiled / cache
 __pycache__/
 *.py[cod]
-*.class
-*.egg-info/
 *.so
-*.dylib
-*.dll
-.Python
-pip-log.txt
-pip-delete-this-directory.txt
-.pytest_cache/
-.coverage
-htmlcov/
 
-# Virtual environments
-.env
-.venv
-venv/
-ENV/
-env/
-
-# Build and distribution
+# Distribution / packaging
 build/
 dist/
 *.egg
+*.egg-info/
 *.whl
 
-# Project specific
-.env.backup
-.env.test
-.sisyphus/
-.claude/
-CLAUDE.md
-debug_*.py
-test_all_*.py
-test_simple*.py
-test_user_query.py
-test_working_project.py
-CLEANUP_SUMMARY.md
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
 
-# IDE and OS
+# Environment variables (secrets)
+.env
+.env.*
+!.env.example
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE / OS
 .vscode/
 .idea/
-*.swp
-*.swo
+*.sw[op]
 *~
 .DS_Store
 Thumbs.db
@@ -51,7 +38,3 @@ desktop.ini
 
 # Logs
 *.log
-
-# Documentation builds
-docs/_build/
-site/

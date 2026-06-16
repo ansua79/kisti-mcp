@@ -1,6 +1,6 @@
 [project]
 name = "kisti-mcp"
-version = "0.3.12b0"
+version = "0.3.32"
 description = "KISTI-MCP Server - MCP server for KISTI OpenAPI (ScienceON, NTIS, DataON)"
 readme = "README.md"
 license = "CC-BY-NC-4.0"
@@ -39,16 +39,8 @@ py-modules = ["kisti_mcp"]
 
 [dependency-groups]
 dev = [
-    "pytest>=9.0.2",
-    "pytest-asyncio>=1.3.0",
-    "respx>=0.22.0",
     "ruff>=0.15.1",
 ]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-asyncio_mode = "auto"
 
 [tool.ruff]
 target-version = "py310"
