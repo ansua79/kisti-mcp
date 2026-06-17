@@ -135,9 +135,14 @@ NTIS의 **국가R&D 과제검색**과 **성과검색**은 이용자격(전체용
 			- 과학기술표준분류 추천(기관용) → search_ntis_science_tech_classifications
 			- 연관콘텐츠 추천(전체용) → search_ntis_related_content_recommendations
 			- 위탁/공동연구·과제참여·통합검색·출연(연)연구자정보(기관/전문기관용) → search_ntis_commission_projects, search_ntis_participation, search_ntis_total, search_ntis_researcher_info
-	- DataON - 서비스 별 API Key **(⚠️ 현재 OpenAPI 서비스 점검/이용제한 상태로 확인됨 — 도구는 제공되나 정상 응답이 오지 않을 수 있습니다)**
+	- DataON - 서비스 별 API Key **(⚠️ OpenAPI 신청 정책 변경 — 2026년 3월부터 기관사용자만 신규 신청 및 권한 관리가 가능합니다)**
+      - **OpenAPI 신청 대상 변경 안내**
+        - 기존: 일반사용자 + 기관사용자 → 변경: **기관사용자만 신청 가능**
+        - 일반사용자로 접속 시 OpenAPI 신청 메뉴 접근이 제한될 수 있습니다.
+        - 기존에 발급받아 이용 중인 API는 **신청 당시 승인된 이용 기간 내에서는 정상 사용 가능**합니다.
+        - **신규 신청 또는 이용 기간 연장 시에는 기관사용자 권한이 필요**합니다.
       - https://dataon.kisti.re.kr/openApi/openApiList_R.do 사이트 방문(데이터온 > 서비스 > API 활용 > OpenAPI)
-      - 회원가입 및 로그인
+      - 회원가입 및 로그인 (※ API 발급은 기관사용자 권한 필요)
       - API 키 발급 (데이터온은 검색 API와 상세조회 API 키 별도 발급 필요)
         - 연구데이터 검색 API 활용신청
         - 연구데이터 메타정보 상세 조회 API 활용신청

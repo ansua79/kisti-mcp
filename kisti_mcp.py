@@ -4350,7 +4350,7 @@ async def search_dataon_research_data(
 ) -> str:
     """
     KISTI DataON에서 연구데이터를 검색합니다. 키워드로 공개된 연구데이터를 검색하여 목록을 반환합니다.
-    ⚠️ 참고: DataON OpenAPI는 현재 서비스 점검/이용제한 상태로 확인되어 정상 응답이 오지 않을 수 있습니다.
+    ⚠️ 참고: DataON OpenAPI는 2026년 3월부터 기관사용자만 신규 신청/이용기간 연장이 가능합니다. 기존 발급 키는 승인된 이용 기간 내에서 정상 동작합니다.
 
     Args:
         query: 검색할 키워드 (연구자명, 연구주제, 데이터명 등)
@@ -4380,7 +4380,7 @@ async def search_dataon_research_data_details(
     """
     KISTI DataON에서 특정 연구데이터의 상세 정보를 조회합니다.
     연구데이터 검색에서 얻은 svcId를 사용하여 해당 데이터의 자세한 메타데이터를 가져옵니다.
-    ⚠️ 참고: DataON OpenAPI는 현재 서비스 점검/이용제한 상태로 확인되어 정상 응답이 오지 않을 수 있습니다.
+    ⚠️ 참고: DataON OpenAPI는 2026년 3월부터 기관사용자만 신규 신청/이용기간 연장이 가능합니다. 기존 발급 키는 승인된 이용 기간 내에서 정상 동작합니다.
 
     사용법:
     1. 먼저 search_dataon_research_data로 연구데이터를 검색하여 svcId를 찾습니다
