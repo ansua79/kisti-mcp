@@ -187,6 +187,7 @@ class NTISClient(BaseAPIClient):
         if not self.api_key:
             logger.warning("NTIS API KEY가 설정되지 않았습니다: NTIS_API_KEY")
             logger.info("NTIS 서비스가 비활성화됩니다.")
+            raise ValueError("필수 환경변수 누락: NTIS_API_KEY")
         else:
             logger.info("NTIS API 인증 정보가 성공적으로 로드되었습니다.")
 
@@ -1313,6 +1314,7 @@ class DataONClient(BaseAPIClient):
         if missing:
             logger.warning(f"DataON API KEY가 설정되지 않았습니다: {', '.join(missing)}")
             logger.info("DataON 서비스가 비활성화됩니다.")
+            raise ValueError(f"필수 환경변수 누락: {', '.join(missing)}")
         else:
             logger.info("DataON API 인증 정보가 성공적으로 로드되었습니다.")
 
