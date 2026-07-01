@@ -1,6 +1,6 @@
 [project]
 name = "kisti-mcp"
-version = "0.3.32.1"
+version = "0.3.32.2"
 description = "KISTI-MCP Server - MCP server for KISTI OpenAPI (ScienceON, NTIS, DataON)"
 readme = "README.md"
 license = "CC-BY-NC-4.0"

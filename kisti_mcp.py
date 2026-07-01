@@ -2283,9 +2283,26 @@ class NTISFormatter(BaseResultFormatter):
         return result_text
 class ScienceONFormatter(BaseResultFormatter):
     """ScienceON 결과 포맷터"""
-    
-    def format_search_results(self, results: List[Dict], query: str, total_count: int, result_type: str) -> str:
-        """검색 결과 포맷팅"""
+
+    # 긴 텍스트(초록·본문·정의·내용) 포함 여부. format_* 진입 시 세팅된다.
+    _include_body = True
+
+    def _body(self, text: str) -> str:
+        """긴 본문 텍스트 정리. _include_body=False 이면 빈 문자열(제외).
+
+        전문 그대로(max_len=0) 반환하되, 제외 모드에서는 아무것도 내보내지 않는다.
+        """
+        if not self._include_body:
+            return ""
+        return clean_text(text, 0)
+
+    def format_search_results(self, results: List[Dict], query: str, total_count: int, result_type: str, include_body: bool = True) -> str:
+        """검색 결과 포맷팅
+
+        include_body=False 이면 초록·본문·정의·내용 등 긴 텍스트를 제외하고
+        서지정보·DOI·링크만 반환한다 (로컬 소형 모델/목록 훑기용).
+        """
+        self._include_body = include_body
         if result_type == "paper":
             return self._format_paper_results(results, query, total_count)
         elif result_type == "patent":
@@ -2317,20 +2334,51 @@ class ScienceONFormatter(BaseResultFormatter):
             journal = paper.get("JournalName", paper.get("SO", "저널 없음"))
             abstract = paper.get("Abstract", paper.get("AB", ""))
             cn = paper.get("CN", "")
-            
+            doi = paper.get("DOI", "")
+            keyword = paper.get("Keyword", "")
+            affiliation = paper.get("Affiliation", "")
+            publisher = paper.get("Publisher", "")
+            page_info = paper.get("PageInfo", "")
+            issn = paper.get("ISSN", "")
+            db_code = paper.get("DBCode", "")
+            degree = paper.get("Degree", "")
+            fulltext_url = paper.get("FulltextURL", "")
+            content_url = paper.get("ContentURL", "")
+
             result_text = f"**{title}**\n  - 저자: {author}\n  - 연도: {year}"
-            
+
+            if affiliation and affiliation.strip():
+                result_text += f"\n🏢 소속: {affiliation}"
             if journal and journal.strip():
                 result_text += f"\n📖 저널: {journal}"
-            
+            if publisher and publisher.strip():
+                result_text += f"\n  - 발행기관: {publisher}"
+            if page_info and page_info.strip():
+                result_text += f"\n  - 페이지: {page_info}"
+            if issn and issn.strip():
+                result_text += f"\n  - ISSN: {issn}"
+            if db_code and db_code.strip():
+                result_text += f"\n  - DB구분: {db_code}"
+            if degree and degree.strip():
+                result_text += f"\n  - 학위구분: {degree}"
             if cn and cn.strip():
                 result_text += f"\n🔗 논문번호(CN): {cn}"
-            
-            # 초록 처리
-            if abstract and len(abstract.strip()) > 0:
-                clean_abstract = self._clean(abstract, 300)
+            if doi and doi.strip():
+                result_text += f"\n🔗 DOI: {doi}"
+            if keyword and keyword.strip():
+                result_text += f"\n  - 키워드: {self._clean(keyword, 0)}"
+
+            # 초록 처리 (전문, include_body=False면 제외)
+            clean_abstract = self._body(abstract)
+            if clean_abstract:
                 result_text += f"\n📝 초록: {clean_abstract}"
-            
+
+            # URL
+            if fulltext_url and fulltext_url.strip():
+                result_text += f"\n📄 원문 URL: {fulltext_url}"
+            if content_url and content_url.strip():
+                result_text += f"\n🔗 ScienceON 링크: {content_url}"
+
             formatted_results.append(result_text + "\n")
         
         return (f"**'{query}' 논문 검색 결과** "
@@ -2350,26 +2398,45 @@ class ScienceONFormatter(BaseResultFormatter):
             patent_status = patent.get("PatentStatus", "")
             ipc = patent.get("IPC", "")
             cn = patent.get("CN", "")
+            appl_num = patent.get("ApplNum", "")
+            publ_num = patent.get("PublNum", "")
+            grant_date = patent.get("GrantDate", "")
+            grant_num = patent.get("GrantNum", "")
+            notice_date = patent.get("NoticeDate", "")
+            nation = patent.get("Nation", "")
+            content_url = patent.get("ContentURL", "")
 
             result_text = f"**{title}**\n  - 출원인: {applicants}\n  - 출원일: {appl_date}"
-            
+
+            if appl_num and appl_num.strip():
+                result_text += f"\n  - 출원번호: {appl_num}"
             if publ_date and publ_date.strip():
                 result_text += f"\n📰 공개일: {publ_date}"
-            
+            if publ_num and publ_num.strip():
+                result_text += f"\n  - 공개번호: {publ_num}"
+            if grant_date and grant_date.strip():
+                result_text += f"\n  - 등록일: {grant_date}"
+            if grant_num and grant_num.strip():
+                result_text += f"\n  - 등록번호: {grant_num}"
+            if notice_date and notice_date.strip():
+                result_text += f"\n  - 공고일: {notice_date}"
             if patent_status and patent_status.strip():
                 result_text += f"\n  - 특허상태: {patent_status}"
-            
             if ipc and ipc.strip():
                 result_text += f"\n  - IPC분류: {ipc}"
-
+            if nation and nation.strip():
+                result_text += f"\n  - 국가: {nation}"
             if cn and cn.strip():
                 result_text += f"\n🔗 특허번호(CN): {cn}"
 
-            # 초록 처리
-            if abstract and len(abstract.strip()) > 0:
-                clean_abstract = self._clean(abstract, 300)
+            # 초록 처리 (전문, include_body=False면 제외)
+            clean_abstract = self._body(abstract)
+            if clean_abstract:
                 result_text += f"\n📝 초록: {clean_abstract}"
-            
+
+            if content_url and content_url.strip():
+                result_text += f"\n🔗 ScienceON 링크: {content_url}"
+
             formatted_results.append(result_text + "\n")
         
         return (f"**'{query}' 특허 검색 결과** "
@@ -2387,20 +2454,50 @@ class ScienceONFormatter(BaseResultFormatter):
             publisher = report.get("Publisher", "발행기관 없음")
             abstract = report.get("Abstract", "")
             cn = report.get("CN", "")
-            
+            keyword = report.get("Keyword", "")
+            page_info = report.get("PageInfo", "")
+            managing_agency = report.get("ManagingAgency", "")
+            contributors = report.get("Contributors", "")
+            co_research_org = report.get("CoResearchOrg", "")
+            collaborating_org = report.get("CollaboratingOrg", "")
+            research_mng_agency = report.get("ResearchMngAgency", "")
+            stc_major_code = report.get("STCMajorCode", "")
+            fulltext_url = report.get("FulltextURL", "")
+            content_url = report.get("ContentURL", "")
+
             result_text = f"**{title}**\n  - 저자: {author}\n  - 발행연도: {pubyear}"
-            
+
             if publisher and publisher.strip():
                 result_text += f"\n🏢 발행기관: {publisher}"
-            
+            if managing_agency and managing_agency.strip():
+                result_text += f"\n  - 주관기관: {managing_agency}"
+            if research_mng_agency and research_mng_agency.strip():
+                result_text += f"\n  - 연구관리기관: {research_mng_agency}"
+            if co_research_org and co_research_org.strip():
+                result_text += f"\n  - 공동연구기관: {co_research_org}"
+            if collaborating_org and collaborating_org.strip():
+                result_text += f"\n  - 협력기관: {collaborating_org}"
+            if contributors and contributors.strip():
+                result_text += f"\n  - 기여자: {contributors}"
+            if page_info and page_info.strip():
+                result_text += f"\n  - 페이지: {page_info}"
+            if stc_major_code and stc_major_code.strip():
+                result_text += f"\n  - 과학기술표준분류: {stc_major_code}"
             if cn and cn.strip():
                 result_text += f"\n🔗 보고서번호(CN): {cn}"
-            
-            # 초록 처리
-            if abstract and len(abstract.strip()) > 0:
-                clean_abstract = self._clean(abstract, 300)
+            if keyword and keyword.strip():
+                result_text += f"\n  - 키워드: {self._clean(keyword, 0)}"
+
+            # 초록 처리 (전문, include_body=False면 제외)
+            clean_abstract = self._body(abstract)
+            if clean_abstract:
                 result_text += f"\n📝 초록: {clean_abstract}"
-            
+
+            if fulltext_url and fulltext_url.strip():
+                result_text += f"\n📄 원문 URL: {fulltext_url}"
+            if content_url and content_url.strip():
+                result_text += f"\n🔗 ScienceON 링크: {content_url}"
+
             formatted_results.append(result_text + "\n")
         
         return (f"**'{query}' 보고서 검색 결과** "
@@ -2408,8 +2505,12 @@ class ScienceONFormatter(BaseResultFormatter):
                 "\n".join(formatted_results) +
                 "\n💡 특정 보고서의 상세정보를 원하면 CN번호를 이용해 보고서상세보기를 사용하세요.")
     
-    def format_detail_result(self, item: Dict, identifier: str, result_type: str = "paper") -> str:
-        """상세 결과 포맷팅"""
+    def format_detail_result(self, item: Dict, identifier: str, result_type: str = "paper", include_body: bool = True) -> str:
+        """상세 결과 포맷팅
+
+        include_body=False 이면 초록·본문 등 긴 텍스트를 제외한다.
+        """
+        self._include_body = include_body
         if result_type == "paper":
             return self._format_paper_detail(item, identifier)
         elif result_type == "patent":
@@ -2435,50 +2536,55 @@ class ScienceONFormatter(BaseResultFormatter):
         year = paper.get("Pubyear", "연도 없음")
         journal = paper.get("JournalName", "저널 없음")
         abstract = paper.get("Abstract", "")
-        
+
         # 상세 정보
         doi = paper.get("DOI", "")
         keywords = paper.get("Keyword", "")
+        page_info = paper.get("PageInfo", "")
+        issn = paper.get("ISSN", "")
+        db_code = paper.get("DBCode", "")
+        degree = paper.get("Degree", "")
+        publisher = paper.get("Publisher", "")
+        affiliation = paper.get("Affiliation", "")
         fulltext_url = paper.get("FulltextURL", "")
         content_url = paper.get("ContentURL", "")
-        
-        # 관련 논문 정보
-        similar_title = paper.get("SimilarTitle", "")
-        citing_title = paper.get("CitingTitle", "")
-        cited_title = paper.get("CitedTitle", "")
-        
+
         result_text = f"**논문 상세정보 (CN: {cn})**\n\n"
         result_text += f"**제목**: {title}\n"
         result_text += f"👤 **저자**: {author}\n"
+        if affiliation and affiliation.strip():
+            result_text += f"🏢 **소속**: {affiliation}\n"
         result_text += f"📅 **연도**: {year}\n"
         result_text += f"📖 **저널**: {journal}\n"
+        if publisher and publisher.strip():
+            result_text += f"  - **발행기관**: {publisher}\n"
+        if page_info and page_info.strip():
+            result_text += f"  - **페이지**: {page_info}\n"
+        if issn and issn.strip():
+            result_text += f"  - **ISSN**: {issn}\n"
+        if db_code and db_code.strip():
+            result_text += f"  - **DB구분**: {db_code}\n"
+        if degree and degree.strip():
+            result_text += f"  - **학위구분**: {degree}\n"
         result_text += f"🔗 **ScienceON 링크**: https://scienceon.kisti.re.kr/srch/selectPORSrchArticle.do?cn={cn}\n"
 
         if doi and doi.strip():
             result_text += f"🔗 **DOI**: {doi}\n"
-        
+
         if keywords and keywords.strip():
-            result_text += f"  - **키워드**: {keywords}\n"
-        
-        # 초록
-        if abstract and len(abstract.strip()) > 0:
-            clean_abstract = self._clean(abstract, 0)
+            result_text += f"  - **키워드**: {self._clean(keywords, 0)}\n"
+
+        # 초록 (include_body=False면 제외)
+        clean_abstract = self._body(abstract)
+        if clean_abstract:
             result_text += f"\n📝 **초록**:\n{clean_abstract}\n"
 
         # URL 정보
         if fulltext_url and fulltext_url.strip():
             result_text += f"\n📄 **원문 URL**: {fulltext_url}\n"
+        if content_url and content_url.strip():
+            result_text += f"🔗 **콘텐츠 URL**: {content_url}\n"
 
-        # 관련 논문 정보
-        if similar_title and similar_title.strip():
-            result_text += f"\n  - **유사 논문**: {similar_title[:200]}...\n"
-        
-        if citing_title and citing_title.strip():
-            result_text += f"\n  - **인용 논문**: {citing_title[:200]}...\n"
-        
-        if cited_title and cited_title.strip():
-            result_text += f"\n  - **참고 논문**: {cited_title[:200]}...\n"
-        
         return result_text
     
     def _format_patent_detail(self, patent: Dict, cn: str) -> str:
@@ -2489,45 +2595,52 @@ class ScienceONFormatter(BaseResultFormatter):
         appl_date = patent.get("ApplDate", "출원일 없음")
         publ_date = patent.get("PublDate", "공개일 없음")
         abstract = patent.get("Abstract", "")
-        
+
         # 상세 정보
         patent_status = patent.get("PatentStatus", "")
         ipc = patent.get("IPC", "")
         nation = patent.get("Nation", "")
         content_url = patent.get("ContentURL", "")
-        
-        # 관련 특허 정보
-        similar_title = patent.get("SimilarTitle", "")
-        citing_title = patent.get("CitingTitle", "")
-        
+        appl_num = patent.get("ApplNum", "")
+        publ_num = patent.get("PublNum", "")
+        grant_date = patent.get("GrantDate", "")
+        grant_num = patent.get("GrantNum", "")
+        notice_date = patent.get("NoticeDate", "")
+
         result_text = f"**특허 상세정보 (CN: {cn})**\n\n"
         result_text += f"**특허제목**: {title}\n"
         result_text += f"👥 **출원인**: {applicants}\n"
         result_text += f"📅 **출원일**: {appl_date}\n"
+        if appl_num and appl_num.strip():
+            result_text += f"  - **출원번호**: {appl_num}\n"
         result_text += f"📰 **공개일**: {publ_date}\n"
+        if publ_num and publ_num.strip():
+            result_text += f"  - **공개번호**: {publ_num}\n"
+        if grant_date and grant_date.strip():
+            result_text += f"  - **등록일**: {grant_date}\n"
+        if grant_num and grant_num.strip():
+            result_text += f"  - **등록번호**: {grant_num}\n"
+        if notice_date and notice_date.strip():
+            result_text += f"  - **공고일**: {notice_date}\n"
         result_text += f"🔗 **ScienceON 링크**: https://scienceon.kisti.re.kr/srch/selectPORSrchPatent.do?cn={cn}\n"
 
         if patent_status and patent_status.strip():
             result_text += f"**특허상태**: {patent_status}\n"
-        
         if ipc and ipc.strip():
             result_text += f"🏷️ **IPC분류**: {ipc}\n"
-        
         if nation and nation.strip():
             result_text += f"  - **국가**: {nation}\n"
-        
-        # 초록
-        if abstract and len(abstract.strip()) > 0:
-            clean_abstract = self._clean(abstract, 0)
+
+        # 초록 (include_body=False면 제외)
+        clean_abstract = self._body(abstract)
+        if clean_abstract:
             result_text += f"\n📝 **초록**:\n{clean_abstract}\n"
-        
-        # 관련 특허 정보
-        if similar_title and similar_title.strip():
-            result_text += f"\n  - **유사 특허**: {similar_title[:200]}...\n"
-        
-        if citing_title and citing_title.strip():
-            result_text += f"\n  - **인용 특허**: {citing_title[:200]}...\n"
-        
+
+        if content_url and content_url.strip():
+            result_text += f"\n🔗 **콘텐츠 URL**: {content_url}\n"
+
+        result_text += "\n💡 이 특허의 인용/피인용 특허는 특허인용정보조회(CN)로 확인할 수 있습니다.\n"
+
         return result_text
     
     def _format_report_detail(self, report: Dict, cn: str) -> str:
@@ -2543,42 +2656,50 @@ class ScienceONFormatter(BaseResultFormatter):
         keywords = report.get("Keyword", "")
         fulltext_url = report.get("FulltextURL", "")
         content_url = report.get("ContentURL", "")
-        
-        # 인용 정보
-        cited_paper_info = report.get("CitedPaperinfo", "")
-        cited_patent_info = report.get("CitedPatentinfo", "")
-        cited_report_info = report.get("CitedReportinfo", "")
-        
+        page_info = report.get("PageInfo", "")
+        managing_agency = report.get("ManagingAgency", "")
+        co_research_org = report.get("CoResearchOrg", "")
+        collaborating_org = report.get("CollaboratingOrg", "")
+        research_mng_agency = report.get("ResearchMngAgency", "")
+        contributors = report.get("Contributors", "")
+        stc_major_code = report.get("STCMajorCode", "")
+
         result_text = f"**보고서 상세정보 (CN: {cn})**\n\n"
         result_text += f"**제목**: {title}\n"
         result_text += f"👤 **저자**: {author}\n"
         result_text += f"📅 **발행연도**: {pubyear}\n"
         if publisher and publisher.strip() and publisher != "발행기관 없음":
             result_text += f"🏢 **발행기관**: {publisher}\n"
+        if managing_agency and managing_agency.strip():
+            result_text += f"  - **주관기관**: {managing_agency}\n"
+        if research_mng_agency and research_mng_agency.strip():
+            result_text += f"  - **연구관리기관**: {research_mng_agency}\n"
+        if co_research_org and co_research_org.strip():
+            result_text += f"  - **공동연구기관**: {co_research_org}\n"
+        if collaborating_org and collaborating_org.strip():
+            result_text += f"  - **협력기관**: {collaborating_org}\n"
+        if contributors and contributors.strip():
+            result_text += f"  - **기여자**: {contributors}\n"
+        if page_info and page_info.strip():
+            result_text += f"  - **페이지**: {page_info}\n"
+        if stc_major_code and stc_major_code.strip():
+            result_text += f"  - **과학기술표준분류**: {stc_major_code}\n"
         result_text += f"🔗 **ScienceON 링크**: https://scienceon.kisti.re.kr/srch/selectPORSrchReport.do?cn={cn}\n"
 
         if keywords and keywords.strip():
-            result_text += f"  - **키워드**: {keywords}\n"
-        
-        # 초록
-        if abstract and len(abstract.strip()) > 0:
-            clean_abstract = self._clean(abstract, 0)
+            result_text += f"  - **키워드**: {self._clean(keywords, 0)}\n"
+
+        # 초록 (include_body=False면 제외)
+        clean_abstract = self._body(abstract)
+        if clean_abstract:
             result_text += f"\n📝 **초록**:\n{clean_abstract}\n"
-        
+
         # URL 정보
         if fulltext_url and fulltext_url.strip():
             result_text += f"\n📄 **원문 URL**: {fulltext_url}\n"
+        if content_url and content_url.strip():
+            result_text += f"🔗 **콘텐츠 URL**: {content_url}\n"
 
-        # 인용 정보
-        if cited_paper_info and cited_paper_info.strip():
-            result_text += f"\n  - **인용 논문**: {cited_paper_info[:200]}...\n"
-        
-        if cited_patent_info and cited_patent_info.strip():
-            result_text += f"\n  - **인용 특허**: {cited_patent_info[:200]}...\n"
-        
-        if cited_report_info and cited_report_info.strip():
-            result_text += f"\n  - **인용 보고서**: {cited_report_info[:200]}...\n"
-        
         return result_text
     
     def format_citation_result(self, citations: List[Dict], cn: str) -> str:
@@ -2594,16 +2715,32 @@ class ScienceONFormatter(BaseResultFormatter):
             applicants = citation.get("Applicants", "출원인 없음")
             appl_date = citation.get("ApplDate", "출원일 없음")
             patent_status = citation.get("PatentStatus", "")
-            
-            citation_text = f"**{title}**\n  - 출원인: {applicants}\n  - 출원일: {appl_date}"
-            
+            citation_type = citation.get("Citation", "")   # 인용특허/피인용특허 구분
+            ipc = citation.get("IPC", "")
+            nation_code = citation.get("NationCode", "")
+            inventor = citation.get("Inventor", "")
+            c_cn = citation.get("CN", "")
+
+            header = f"**{title}**"
+            if citation_type and citation_type.strip():
+                header += f"  [{citation_type}]"
+            citation_text = f"{header}\n  - 출원인: {applicants}\n  - 출원일: {appl_date}"
+
+            if inventor and inventor.strip():
+                citation_text += f"\n  - 발명자: {inventor}"
             if patent_status and patent_status.strip():
                 citation_text += f"\n  - 특허상태: {patent_status}"
-            
+            if ipc and ipc.strip():
+                citation_text += f"\n  - IPC분류: {ipc}"
+            if nation_code and nation_code.strip():
+                citation_text += f"\n  - 국가: {nation_code}"
+            if c_cn and c_cn.strip():
+                citation_text += f"\n  - CN: {c_cn}"
+
             formatted_citations.append(citation_text + "\n")
-        
+
         result_text += "\n".join(formatted_citations)
-        
+
         if len(citations) > 10:
             result_text += f"\n총 {len(citations)}건 중 10건만 표시되었습니다."
 
@@ -2620,15 +2757,39 @@ class ScienceONFormatter(BaseResultFormatter):
             title = r.get("Title", "제목 없음")
             year = r.get("Pubyear", "")
             cn = r.get("CN", "")
-            abstract = self._clean(r.get("Abstract", ""), 200)
+            author = r.get("Author", "")
+            subject = r.get("Subject", "")
+            keyword = r.get("Keyword", "")
+            reg_date = r.get("RegDate", "")
+            publisher = r.get("Publisher", "")
+            db_code = r.get("DBCode", "")
+            fulltext_url = r.get("FulltextURL", "")
+            content_url = r.get("ContentURL", "")
+            abstract = self._body(r.get("Abstract", ""))
 
             result_text = f"**{title}**"
+            if author and author.strip():
+                result_text += f"\n  - 저자: {author}"
+            if publisher and publisher.strip():
+                result_text += f"\n🏢 발행기관: {publisher}"
             if year and year.strip():
                 result_text += f"\n  - 발행년: {year}"
+            if reg_date and reg_date.strip():
+                result_text += f"\n  - 등록일: {reg_date}"
+            if subject and subject.strip():
+                result_text += f"\n  - 주제: {subject}"
+            if db_code and db_code.strip():
+                result_text += f"\n  - DB구분: {db_code}"
+            if keyword and keyword.strip():
+                result_text += f"\n  - 키워드: {self._clean(keyword, 0)}"
             if cn and cn.strip():
                 result_text += f"\n🔗 동향번호(CN): {cn}"
             if abstract:
                 result_text += f"\n📝 내용: {abstract}"
+            if fulltext_url and fulltext_url.strip():
+                result_text += f"\n📄 원문 URL: {fulltext_url}"
+            if content_url and content_url.strip():
+                result_text += f"\n🔗 ScienceON 링크: {content_url}"
             formatted_results.append(result_text + "\n")
 
         return (f"**'{query}' 과학기술 동향 검색 결과** "
@@ -2640,17 +2801,27 @@ class ScienceONFormatter(BaseResultFormatter):
         """과학기술 동향 상세 포맷팅"""
         result_text = f"**동향 기사 상세정보 (CN: {cn})**\n\n"
         result_text += f"**제목**: {r.get('Title', '')}\n"
+        if r.get("Author"):
+            result_text += f"👤 **저자**: {r['Author']}\n"
         if r.get("Pubyear"):
             result_text += f"📅 **발행년**: {r['Pubyear']}\n"
+        if r.get("RegDate"):
+            result_text += f"  - **등록일**: {r['RegDate']}\n"
         if r.get("Publisher"):
             result_text += f"🏢 **발행기관**: {r['Publisher']}\n"
+        if r.get("Subject"):
+            result_text += f"  - **주제**: {r['Subject']}\n"
         if r.get("DBCode"):
             result_text += f"  - **DB**: {r['DBCode']}\n"
-        abstract = self._clean(r.get("Abstract", ""), 0)
+        if r.get("Keyword"):
+            result_text += f"  - **키워드**: {self._clean(r['Keyword'], 0)}\n"
+        abstract = self._body(r.get("Abstract", ""))
         if abstract:
             result_text += f"\n📝 **내용**:\n{abstract}\n"
         if r.get("FulltextURL"):
             result_text += f"\n📄 **원문 URL**: {r['FulltextURL']}\n"
+        if r.get("ContentURL"):
+            result_text += f"🔗 **ScienceON 링크**: {r['ContentURL']}\n"
         return result_text
 
     # ── 과학향기(SCENT) ────────────────────────────────────
@@ -2661,12 +2832,27 @@ class ScienceONFormatter(BaseResultFormatter):
             title = r.get("ScentTitle", "제목 없음")
             volume = r.get("Volume", "")
             cn = r.get("CN", "")
+            class_name = r.get("Class", "")
+            subclass = r.get("Subclass", "")
+            register_date = r.get("RegisterDate", "")
+            content_url = r.get("ContentURL", "")
+            content = self._body(r.get("Content", ""))
 
             result_text = f"**{title}**"
             if volume and volume.strip():
                 result_text += f"\n  - 권호: {volume}"
+            if class_name and class_name.strip():
+                result_text += f"\n  - 분류: {class_name}"
+            if subclass and subclass.strip():
+                result_text += f"\n  - 세부분류: {subclass}"
+            if register_date and register_date.strip():
+                result_text += f"\n  - 등록일: {register_date}"
             if cn and cn.strip():
                 result_text += f"\n🔗 과학향기번호(CN): {cn}"
+            if content:
+                result_text += f"\n📝 본문: {content}"
+            if content_url and content_url.strip():
+                result_text += f"\n🔗 ScienceON 링크: {content_url}"
             formatted_results.append(result_text + "\n")
 
         return (f"**'{query}'년 과학향기 칼럼 목록** "
@@ -2680,9 +2866,17 @@ class ScienceONFormatter(BaseResultFormatter):
         result_text += f"**제목**: {r.get('ScentTitle', '')}\n"
         if r.get("Volume"):
             result_text += f"  - **권호**: {r['Volume']}\n"
-        content = self._clean(r.get("Content", ""), 0)
+        if r.get("Class"):
+            result_text += f"  - **분류**: {r['Class']}\n"
+        if r.get("Subclass"):
+            result_text += f"  - **세부분류**: {r['Subclass']}\n"
+        if r.get("RegisterDate"):
+            result_text += f"  - **등록일**: {r['RegisterDate']}\n"
+        content = self._body(r.get("Content", ""))
         if content:
             result_text += f"\n📝 **본문**:\n{content}\n"
+        if r.get("ContentURL"):
+            result_text += f"\n🔗 **ScienceON 링크**: {r['ContentURL']}\n"
         return result_text
 
     # ── 연구자(RESEARCHER) ─────────────────────────────────
@@ -2693,7 +2887,9 @@ class ScienceONFormatter(BaseResultFormatter):
             name_kor = r.get("AuthorNameKor", "")
             name_eng = r.get("AuthorNameEng", "")
             inst_kor = r.get("AuthorInstKor", "")
+            inst_eng = r.get("AuthorInstEng", "")
             email = r.get("Email", "")
+            keyword = r.get("Keyword", "")
             art_cnt = r.get("ArticleCnt", "0")
             pat_cnt = r.get("PatentCnt", "0")
             rpt_cnt = r.get("ReportCnt", "0")
@@ -2705,8 +2901,12 @@ class ScienceONFormatter(BaseResultFormatter):
                 result_text += f"\n  - 영문명: {name_eng}"
             if inst_kor and inst_kor.strip():
                 result_text += f"\n🏢 소속: {inst_kor}"
+            if inst_eng and inst_eng.strip():
+                result_text += f"\n  - 소속(영문): {inst_eng}"
             if email and email.strip():
                 result_text += f"\n  - 이메일: {email}"
+            if keyword and keyword.strip():
+                result_text += f"\n  - 키워드: {self._clean(keyword, 0)}"
             result_text += f"\n  - 실적: 논문 {art_cnt}건 / 특허 {pat_cnt}건 / 보고서 {rpt_cnt}건"
             if cn and cn.strip():
                 result_text += f"\n🔗 연구자번호(CN): {cn}"
@@ -2745,6 +2945,9 @@ class ScienceONFormatter(BaseResultFormatter):
             name_kor = r.get("OrganKor", "")
             name_eng = r.get("OrganEng", "")
             keyword = r.get("Keyword", "")
+            art_cnt = r.get("ArticleCnt", "0")
+            pat_cnt = r.get("PatentCnt", "0")
+            rpt_cnt = r.get("ReportCnt", "0")
             cn = r.get("CN", "")
 
             name = name_kor or name_eng or "기관명 없음"
@@ -2752,7 +2955,8 @@ class ScienceONFormatter(BaseResultFormatter):
             if name_eng and name_kor:
                 result_text += f"\n  - 영문명: {name_eng}"
             if keyword and keyword.strip():
-                result_text += f"\n  - 키워드: {self._clean(keyword, 100)}"
+                result_text += f"\n  - 키워드: {self._clean(keyword, 0)}"
+            result_text += f"\n  - 실적: 논문 {art_cnt}건 / 특허 {pat_cnt}건 / 보고서 {rpt_cnt}건"
             if cn and cn.strip():
                 result_text += f"\n🔗 기관번호(CN): {cn}"
             formatted_results.append(result_text + "\n")
@@ -2770,7 +2974,10 @@ class ScienceONFormatter(BaseResultFormatter):
         if r.get("OrganEng"):
             result_text += f"**기관명(영문)**: {r['OrganEng']}\n"
         if r.get("Keyword"):
-            result_text += f"  - **키워드**: {r['Keyword']}\n"
+            result_text += f"  - **키워드**: {self._clean(r['Keyword'], 0)}\n"
+        result_text += (f"📊 **실적**: 논문 {r.get('ArticleCnt', '0')}건 / "
+                        f"특허 {r.get('PatentCnt', '0')}건 / "
+                        f"보고서 {r.get('ReportCnt', '0')}건\n")
         return result_text
 
     # ── 기술트렌드(TREND) ──────────────────────────────────
@@ -2780,25 +2987,31 @@ class ScienceONFormatter(BaseResultFormatter):
         for r in items:
             title = r.get("Title", "제목 없음")
             keywords = r.get("RelatedKeywords", "")
-            definition = self._clean(r.get("Definition", ""), 200)
+            definition = self._body(r.get("Definition", ""))
             pub_date = r.get("PublDate", "")
             cn = r.get("CN", "")
             content_url = r.get("ContentURL", "")
             pdf_url = r.get("PdfURL", "")
+            def_source_url = r.get("DefinitionSourceURL", "")
+            thumbnail_url = r.get("ThumbnailURL", "")
 
             result_text = f"**{title}**"
             if pub_date and pub_date.strip():
                 result_text += f"\n  - 생성일: {pub_date}"
             if keywords and keywords.strip():
-                result_text += f"\n  - 연관키워드: {self._clean(keywords, 150)}"
+                result_text += f"\n  - 연관키워드: {self._clean(keywords, 0)}"
             if definition:
                 result_text += f"\n📝 정의: {definition}"
+            if def_source_url and def_source_url.strip():
+                result_text += f"\n  - 정의 출처: {def_source_url}"
             if cn and cn.strip():
                 result_text += f"\n🔗 트렌드번호(CN): {cn}"
             if content_url and content_url.strip():
                 result_text += f"\n🔗 상세보기: {content_url}"
             if pdf_url and pdf_url.strip():
                 result_text += f"\n📄 PDF: {pdf_url}"
+            if thumbnail_url and thumbnail_url.strip():
+                result_text += f"\n🖼 썸네일: {thumbnail_url}"
             formatted_results.append(result_text + "\n")
 
         return (f"**'{query}' 기술트렌드 검색 결과** "
@@ -2811,7 +3024,7 @@ class ScienceONFormatter(BaseResultFormatter):
         formatted_results = []
         for r in items:
             title = r.get("sj", "제목 없음")
-            contents = self._clean(r.get("contents", ""), 200)
+            contents = self._body(r.get("contents", ""))
             category = r.get("cdNm", "")
             origin_url = r.get("originUrl", "")
             reg_date = r.get("registDt", "")
@@ -2986,23 +3199,23 @@ class SearchService:
         self.client = client
         self.formatter = formatter
     
-    async def search_papers(self, query: str, max_results: int = 10) -> str:
+    async def search_papers(self, query: str, max_results: int = 10, include_body: bool = True) -> str:
         """논문 검색"""
         try:
             # 토큰 발급
             if not await self.client.get_token():
                 return "🚨 토큰 발급에 실패했습니다. 인증 정보를 확인해주세요."
-            
+
             # 검색 수행
             result = await self.client.search(query, "ARTI", max_results)
-            
+
             if result.get("error"):
                 return f"🚨 API 오류: {result.get('error_message', '알 수 없는 오류')}"
-            
+
             if result.get("success") and result.get("papers"):
                 papers = result["papers"]
                 total_count = result.get("total_count", 0)
-                return self.formatter.format_search_results(papers[:max_results], query, total_count, "paper")
+                return self.formatter.format_search_results(papers[:max_results], query, total_count, "paper", include_body=include_body)
             else:
                 return f"'{query}'에 대한 논문 검색 결과가 없습니다."
                 
@@ -3010,7 +3223,7 @@ class SearchService:
             logger.error(f"논문 검색 중 오류: {str(e)}")
             return f"논문 검색 중 오류가 발생했습니다: {str(e)}"
 
-    async def get_paper_details(self, cn: str) -> str:
+    async def get_paper_details(self, cn: str, include_body: bool = True) -> str:
         """논문 상세 정보 조회"""
         try:
             # 토큰 발급
@@ -3026,7 +3239,7 @@ class SearchService:
             if result.get("success") and result.get("papers"):
                 papers = result["papers"]
                 if papers:
-                    return self.formatter.format_detail_result(papers[0], cn, "paper")
+                    return self.formatter.format_detail_result(papers[0], cn, "paper", include_body=include_body)
                 else:
                     return f"CN번호 '{cn}'에 해당하는 논문을 찾을 수 없습니다."
             else:
@@ -3036,23 +3249,23 @@ class SearchService:
             logger.error(f"논문 상세보기 중 오류: {str(e)}")
             return f"논문 상세보기 중 오류가 발생했습니다: {str(e)}"
 
-    async def search_patents(self, query: str, max_results: int = 10) -> str:
+    async def search_patents(self, query: str, max_results: int = 10, include_body: bool = True) -> str:
         """특허 검색"""
         try:
             # 토큰 발급
             if not await self.client.get_token():
                 return "🚨 토큰 발급에 실패했습니다. 인증 정보를 확인해주세요."
-            
+
             # 검색 수행
             result = await self.client.search(query, "PATENT", max_results)
-            
+
             if result.get("error"):
                 return f"🚨 API 오류: {result.get('error_message', '알 수 없는 오류')}"
-            
+
             if result.get("success") and result.get("papers"):  # 특허도 papers 필드로 반환
                 patents = result["papers"]
                 total_count = result.get("total_count", 0)
-                return self.formatter.format_search_results(patents[:max_results], query, total_count, "patent")
+                return self.formatter.format_search_results(patents[:max_results], query, total_count, "patent", include_body=include_body)
             else:
                 return f"'{query}'에 대한 특허 검색 결과가 없습니다."
                 
@@ -3060,23 +3273,23 @@ class SearchService:
             logger.error(f"특허 검색 중 오류: {str(e)}")
             return f"특허 검색 중 오류가 발생했습니다: {str(e)}"
     
-    async def search_reports(self, query: str, max_results: int = 10) -> str:
+    async def search_reports(self, query: str, max_results: int = 10, include_body: bool = True) -> str:
         """보고서 검색"""
         try:
             # 토큰 발급
             if not await self.client.get_token():
                 return "🚨 토큰 발급에 실패했습니다. 인증 정보를 확인해주세요."
-            
+
             # 검색 수행
             result = await self.client.search(query, "REPORT", max_results)
-            
+
             if result.get("error"):
                 return f"🚨 API 오류: {result.get('error_message', '알 수 없는 오류')}"
-            
+
             if result.get("success") and result.get("papers"):  # 보고서도 papers 필드로 반환
                 reports = result["papers"]
                 total_count = result.get("total_count", 0)
-                return self.formatter.format_search_results(reports[:max_results], query, total_count, "report")
+                return self.formatter.format_search_results(reports[:max_results], query, total_count, "report", include_body=include_body)
             else:
                 return f"'{query}'에 대한 보고서 검색 결과가 없습니다."
                 
@@ -3084,23 +3297,23 @@ class SearchService:
             logger.error(f"보고서 검색 중 오류: {str(e)}")
             return f"보고서 검색 중 오류가 발생했습니다: {str(e)}"
     
-    async def get_patent_details(self, cn: str) -> str:
+    async def get_patent_details(self, cn: str, include_body: bool = True) -> str:
         """특허 상세 정보 조회"""
         try:
             # 토큰 발급
             if not await self.client.get_token():
                 return "🚨 토큰 발급에 실패했습니다. 인증 정보를 확인해주세요."
-            
+
             # 상세 정보 조회
             result = await self.client.get_details(cn, "PATENT")
-            
+
             if result.get("error"):
                 return f"🚨 API 오류: {result.get('error_message', '알 수 없는 오류')}"
-            
+
             if result.get("success") and result.get("papers"):
                 patents = result["papers"]
                 if patents:
-                    return self.formatter.format_detail_result(patents[0], cn, "patent")
+                    return self.formatter.format_detail_result(patents[0], cn, "patent", include_body=include_body)
                 else:
                     return f"CN번호 '{cn}'에 해당하는 특허를 찾을 수 없습니다."
             else:
@@ -3133,23 +3346,23 @@ class SearchService:
             logger.error(f"특허 인용정보 조회 중 오류: {str(e)}")
             return f"특허 인용정보 조회 중 오류가 발생했습니다: {str(e)}"
     
-    async def get_report_details(self, cn: str) -> str:
+    async def get_report_details(self, cn: str, include_body: bool = True) -> str:
         """보고서 상세 정보 조회"""
         try:
             # 토큰 발급
             if not await self.client.get_token():
                 return "🚨 토큰 발급에 실패했습니다. 인증 정보를 확인해주세요."
-            
+
             # 상세 정보 조회
             result = await self.client.get_details(cn, "REPORT")
-            
+
             if result.get("error"):
                 return f"🚨 API 오류: {result.get('error_message', '알 수 없는 오류')}"
-            
+
             if result.get("success") and result.get("papers"):
                 reports = result["papers"]
                 if reports:
-                    return self.formatter.format_detail_result(reports[0], cn, "report")
+                    return self.formatter.format_detail_result(reports[0], cn, "report", include_body=include_body)
                 else:
                     return f"CN번호 '{cn}'에 해당하는 보고서를 찾을 수 없습니다."
             else:
@@ -3162,7 +3375,8 @@ class SearchService:
     # ── 신규 ScienceON 도메인 (동향/과학향기/연구자/연구기관/기술트렌드/금주뉴스) ──
     async def _search_generic(self, query, target: str, result_type: str,
                               display_query: str, max_results: int,
-                              query_field: str = "BI", empty_msg: str = None) -> str:
+                              query_field: str = "BI", empty_msg: str = None,
+                              include_body: bool = True) -> str:
         """검색 공통 처리 (records alias 사용)"""
         try:
             if not await self.client.get_token():
@@ -3177,14 +3391,16 @@ class SearchService:
                 records = result["records"]
                 total_count = result.get("total_count", 0)
                 return self.formatter.format_search_results(
-                    records[:max_results], display_query, total_count, result_type)
+                    records[:max_results], display_query, total_count, result_type,
+                    include_body=include_body)
             else:
                 return empty_msg or f"'{display_query}'에 대한 검색 결과가 없습니다."
         except Exception as e:
             logger.error(f"{result_type} 검색 중 오류: {str(e)}")
             return f"{result_type} 검색 중 오류가 발생했습니다: {str(e)}"
 
-    async def _detail_generic(self, cn: str, target: str, result_type: str) -> str:
+    async def _detail_generic(self, cn: str, target: str, result_type: str,
+                              include_body: bool = True) -> str:
         """상세 조회 공통 처리 (records alias 사용)"""
         try:
             if not await self.client.get_token():
@@ -3198,48 +3414,49 @@ class SearchService:
             if result.get("success") and result.get("records"):
                 records = result["records"]
                 if records:
-                    return self.formatter.format_detail_result(records[0], cn, result_type)
+                    return self.formatter.format_detail_result(records[0], cn, result_type,
+                                                               include_body=include_body)
                 return f"CN번호 '{cn}'에 해당하는 정보를 찾을 수 없습니다."
             return f"CN번호 '{cn}'에 대한 상세정보를 가져올 수 없습니다."
         except Exception as e:
             logger.error(f"{result_type} 상세보기 중 오류: {str(e)}")
             return f"{result_type} 상세보기 중 오류가 발생했습니다: {str(e)}"
 
-    async def search_news_trends(self, query: str, max_results: int = 10) -> str:
-        return await self._search_generic(query, "ATT", "news_trend", query, max_results)
+    async def search_news_trends(self, query: str, max_results: int = 10, include_body: bool = True) -> str:
+        return await self._search_generic(query, "ATT", "news_trend", query, max_results, include_body=include_body)
 
-    async def get_news_trend_details(self, cn: str) -> str:
-        return await self._detail_generic(cn, "ATT", "news_trend")
+    async def get_news_trend_details(self, cn: str, include_body: bool = True) -> str:
+        return await self._detail_generic(cn, "ATT", "news_trend", include_body=include_body)
 
-    async def search_scents(self, year: str, max_results: int = 10) -> str:
+    async def search_scents(self, year: str, max_results: int = 10, include_body: bool = True) -> str:
         return await self._search_generic(
             year, "SCENT", "scent", year, max_results, query_field="PY",
-            empty_msg=f"{year}년 과학향기 칼럼 검색 결과가 없습니다.")
+            empty_msg=f"{year}년 과학향기 칼럼 검색 결과가 없습니다.", include_body=include_body)
 
-    async def get_scent_details(self, cn: str) -> str:
-        return await self._detail_generic(cn, "SCENT", "scent")
+    async def get_scent_details(self, cn: str, include_body: bool = True) -> str:
+        return await self._detail_generic(cn, "SCENT", "scent", include_body=include_body)
 
-    async def search_researchers(self, query: str, max_results: int = 10) -> str:
-        return await self._search_generic(query, "RESEARCHER", "researcher", query, max_results)
+    async def search_researchers(self, query: str, max_results: int = 10, include_body: bool = True) -> str:
+        return await self._search_generic(query, "RESEARCHER", "researcher", query, max_results, include_body=include_body)
 
-    async def get_researcher_details(self, cn: str) -> str:
-        return await self._detail_generic(cn, "RESEARCHER", "researcher")
+    async def get_researcher_details(self, cn: str, include_body: bool = True) -> str:
+        return await self._detail_generic(cn, "RESEARCHER", "researcher", include_body=include_body)
 
-    async def search_organizations(self, query: str, max_results: int = 10) -> str:
-        return await self._search_generic(query, "ORGAN", "organization", query, max_results)
+    async def search_organizations(self, query: str, max_results: int = 10, include_body: bool = True) -> str:
+        return await self._search_generic(query, "ORGAN", "organization", query, max_results, include_body=include_body)
 
-    async def get_organization_details(self, cn: str) -> str:
-        return await self._detail_generic(cn, "ORGAN", "organization")
+    async def get_organization_details(self, cn: str, include_body: bool = True) -> str:
+        return await self._detail_generic(cn, "ORGAN", "organization", include_body=include_body)
 
-    async def search_tech_trends(self, query: str, max_results: int = 10) -> str:
-        return await self._search_generic(query, "TREND", "tech_trend", query, max_results)
+    async def search_tech_trends(self, query: str, max_results: int = 10, include_body: bool = True) -> str:
+        return await self._search_generic(query, "TREND", "tech_trend", query, max_results, include_body=include_body)
 
-    async def search_weekly_news(self, date: str, max_results: int = 20) -> str:
+    async def search_weekly_news(self, date: str, max_results: int = 20, include_body: bool = True) -> str:
         return await self._search_generic(
             date, "SNEWS", "weekly_news", date, max_results, query_field="RD",
             empty_msg=(f"{date} 날짜의 금주의과학기술뉴스가 없습니다.\n"
                        "날짜 형식: YYYYMMDD (예: 20250224)\n"
-                       "뉴스는 매주 월요일 기준으로 등록됩니다."))
+                       "뉴스는 매주 월요일 기준으로 등록됩니다."), include_body=include_body)
 
 # 서비스 클래스에 NTIS 메서드 추가
 class NTISSearchService:
@@ -3722,83 +3939,95 @@ except Exception as e:
 @mcp.tool()
 async def search_scienceon_papers(
     query: str,
-    max_results: int = 10
+    max_results: int = 10,
+    include_body: bool = True
 ) -> str:
     """
     KISTI ScienceON에서 논문 목록을 검색합니다. 키워드로 여러 논문을 검색하여 목록을 반환합니다.
-    
+
     Args:
         query: 검색할 키워드
         max_results: 최대 결과 수 (기본값: 10)
-    
+        include_body: 초록 등 긴 본문 포함 여부 (기본값: True). False면 초록을 제외하고
+            서지정보·DOI·링크만 반환합니다. 컨텍스트가 작은 로컬 모델이나 목록만 훑을 때 유용합니다.
+
     Returns:
-        논문 목록 검색 결과 (제목, 저자, 연도, 저널명, 초록 포함)
+        논문 목록 검색 결과 (제목, 저자, 소속, 저널, 페이지, DOI, 초록 등 포함)
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
                "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
-    
-    return await search_service.search_papers(query, max_results)
+
+    return await search_service.search_papers(query, max_results, include_body)
 @mcp.tool()
 async def search_scienceon_paper_details(
-    cn: str
+    cn: str,
+    include_body: bool = True
 ) -> str:
     """
     KISTI ScienceON에서 특정 논문의 상세 정보를 조회합니다. 논문 검색에서 얻은 CN번호를 사용하여 해당 논문의 자세한 정보를 가져옵니다.
-    
+
     Args:
         cn: 논문 고유 식별번호 (논문 검색 결과에서 얻은 CN 번호)
-    
+        include_body: 초록 등 긴 본문 포함 여부 (기본값: True). False면 초록을 제외하고
+            서지정보·DOI·링크만 반환합니다.
+
     Returns:
-        논문의 상세 정보 (인용논문, 참고문헌, 관련논문, 유사논문 등 포함)
+        논문의 상세 정보 (제목, 저자, 소속, 발행기관, 페이지, ISSN, DOI, 초록, 링크 등)
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
                "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
-    
-    return await search_service.get_paper_details(cn)
+
+    return await search_service.get_paper_details(cn, include_body)
 @mcp.tool()
 async def search_scienceon_patents(
     query: str,
-    max_results: int = 10
+    max_results: int = 10,
+    include_body: bool = True
 ) -> str:
     """
     KISTI ScienceON에서 특허 목록을 검색합니다. 키워드로 여러 특허를 검색하여 목록을 반환합니다.
-    
+
     Args:
         query: 검색할 키워드
         max_results: 최대 결과 수 (기본값: 10)
-    
+        include_body: 초록 등 긴 본문 포함 여부 (기본값: True). False면 초록을 제외하고
+            서지정보·링크만 반환합니다.
+
     Returns:
-        특허 목록 검색 결과 (특허제목, 출원인, 출원일, 공개일 등 포함)
+        특허 목록 검색 결과 (특허제목, 출원인, 출원/공개/등록번호, 상태, IPC 등 포함)
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
                "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
-    
-    return await search_service.search_patents(query, max_results)
+
+    return await search_service.search_patents(query, max_results, include_body)
 @mcp.tool()
 async def search_scienceon_patent_details(
-    cn: str
+    cn: str,
+    include_body: bool = True
 ) -> str:
     """
     KISTI ScienceON에서 특정 특허의 상세 정보를 조회합니다. 특허 검색에서 얻은 CN번호를 사용하여 해당 특허의 자세한 정보를 가져옵니다.
-    
+    인용/피인용 특허는 별도 도구(search_scienceon_patent_citations)로 조회합니다.
+
     Args:
         cn: 특허 고유 식별번호 (특허 검색 결과에서 얻은 CN 번호)
-    
+        include_body: 초록 등 긴 본문 포함 여부 (기본값: True). False면 초록을 제외합니다.
+
     Returns:
-        특허의 상세 정보 (유사특허, 인용특허, 특허상태 등 포함)
+        특허의 상세 정보 (특허제목, 출원인, 출원/공개/등록번호, 공고일, 상태, IPC, 초록 등)
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
                "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
-    
-    return await search_service.get_patent_details(cn)
+
+    return await search_service.get_patent_details(cn, include_body)
 @mcp.tool()
 async def search_scienceon_patent_citations(
     cn: str
@@ -3821,50 +4050,54 @@ async def search_scienceon_patent_citations(
 @mcp.tool()
 async def search_scienceon_reports(
     query: str,
-    max_results: int = 10
+    max_results: int = 10,
+    include_body: bool = True
 ) -> str:
     """
     KISTI ScienceON에서 R&D 보고서 목록을 검색합니다. 키워드로 여러 보고서를 검색하여 목록을 반환합니다.
-    
+
     Args:
         query: 검색할 키워드
         max_results: 최대 결과 수 (기본값: 10)
-    
+        include_body: 초록 등 긴 본문 포함 여부 (기본값: True). False면 초록을 제외합니다.
+
     Returns:
-        보고서 목록 검색 결과 (제목, 저자, 발행연도, 발행기관, 초록 포함)
+        보고서 목록 검색 결과 (제목, 저자, 발행연도, 발행/주관기관, 초록 포함)
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
                "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
-    
-    return await search_service.search_reports(query, max_results)
+
+    return await search_service.search_reports(query, max_results, include_body)
 @mcp.tool()
 async def search_scienceon_report_details(
-    cn: str
+    cn: str,
+    include_body: bool = True
 ) -> str:
     """
     KISTI ScienceON에서 특정 R&D 보고서의 상세 정보를 조회합니다. 보고서 검색에서 얻은 CN번호를 사용하여 해당 보고서의 자세한 정보를 가져옵니다.
-    
+
     Args:
         cn: 보고서 고유 식별번호 (보고서 검색 결과에서 얻은 CN 번호)
-    
+        include_body: 초록 등 긴 본문 포함 여부 (기본값: True). False면 초록을 제외합니다.
+
     Returns:
-        보고서의 상세 정보 (인용논문, 인용특허, 관련보고서 등 포함)
+        보고서의 상세 정보 (제목, 저자, 발행/주관/공동연구기관, 기여자, 표준분류, 초록 등)
     """
     if search_service is None:
         return ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
                "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
-    
-    return await search_service.get_report_details(cn)
+
+    return await search_service.get_report_details(cn, include_body)
 
 _SCIENCEON_CRED_MSG = ("🚨 API 인증 정보가 설정되지 않았습니다.\n"
                        "MCP 클라이언트 설정(JSON)의 env 항목에 필요한 환경변수를 추가해주세요.\n"
                        "필요한 변수: SCIENCEON_API_KEY, SCIENCEON_CLIENT_ID, SCIENCEON_MAC_ADDRESS")
 
 @mcp.tool()
-async def search_scienceon_news_trends(query: str, max_results: int = 10) -> str:
+async def search_scienceon_news_trends(query: str, max_results: int = 10, include_body: bool = True) -> str:
     """
     KISTI ScienceON에서 과학기술 동향 기사를 검색합니다.
     국내외 과학기술 뉴스/기사 모음 (해외과학기술동향, 정보서비스 글로벌동향 등).
@@ -3872,31 +4105,33 @@ async def search_scienceon_news_trends(query: str, max_results: int = 10) -> str
     Args:
         query: 검색할 키워드
         max_results: 최대 결과 수 (기본값: 10)
+        include_body: 내용 등 긴 본문 포함 여부 (기본값: True). False면 본문을 제외합니다.
 
     Returns:
-        동향 기사 목록 (제목, 발행년, 내용, CN번호)
+        동향 기사 목록 (제목, 저자, 발행년, 주제, 내용, CN번호)
     """
     if search_service is None:
         return _SCIENCEON_CRED_MSG
-    return await search_service.search_news_trends(query, max_results)
+    return await search_service.search_news_trends(query, max_results, include_body)
 
 @mcp.tool()
-async def search_scienceon_news_trend_details(cn: str) -> str:
+async def search_scienceon_news_trend_details(cn: str, include_body: bool = True) -> str:
     """
     KISTI ScienceON에서 특정 과학기술 동향 기사의 상세 정보를 조회합니다.
 
     Args:
         cn: 동향 기사 고유 식별번호 (동향 검색 결과의 CN 번호)
+        include_body: 내용 등 긴 본문 포함 여부 (기본값: True). False면 본문을 제외합니다.
 
     Returns:
         동향 기사 상세정보 (내용, 발행기관, 원문 등 포함)
     """
     if search_service is None:
         return _SCIENCEON_CRED_MSG
-    return await search_service.get_news_trend_details(cn)
+    return await search_service.get_news_trend_details(cn, include_body)
 
 @mcp.tool()
-async def search_scienceon_scents(year: str, max_results: int = 10) -> str:
+async def search_scienceon_scents(year: str, max_results: int = 10, include_body: bool = True) -> str:
     """
     KISTI ScienceON에서 과학향기 칼럼을 검색합니다.
     2003년부터 과학기술 전 분야를 다루는 대중과학 칼럼 서비스입니다.
@@ -3905,28 +4140,30 @@ async def search_scienceon_scents(year: str, max_results: int = 10) -> str:
     Args:
         year: 발행연도 (예: "2024")
         max_results: 최대 결과 수 (기본값: 10)
+        include_body: 본문 등 긴 텍스트 포함 여부 (기본값: True). False면 본문을 제외합니다.
 
     Returns:
-        과학향기 칼럼 목록 (제목, 권호, CN번호)
+        과학향기 칼럼 목록 (제목, 권호, 분류, 본문, CN번호)
     """
     if search_service is None:
         return _SCIENCEON_CRED_MSG
-    return await search_service.search_scents(year, max_results)
+    return await search_service.search_scents(year, max_results, include_body)
 
 @mcp.tool()
-async def search_scienceon_scent_details(cn: str) -> str:
+async def search_scienceon_scent_details(cn: str, include_body: bool = True) -> str:
     """
     KISTI ScienceON에서 특정 과학향기 칼럼의 상세정보 및 본문을 조회합니다.
 
     Args:
         cn: 과학향기 고유 식별번호 (과학향기 검색 결과의 CN 번호)
+        include_body: 본문 포함 여부 (기본값: True). False면 본문을 제외하고 메타정보만 반환합니다.
 
     Returns:
         과학향기 칼럼 상세정보 및 본문
     """
     if search_service is None:
         return _SCIENCEON_CRED_MSG
-    return await search_service.get_scent_details(cn)
+    return await search_service.get_scent_details(cn, include_body)
 
 @mcp.tool()
 async def search_scienceon_researchers(query: str, max_results: int = 10) -> str:
@@ -3992,7 +4229,7 @@ async def search_scienceon_organization_details(cn: str) -> str:
     return await search_service.get_organization_details(cn)
 
 @mcp.tool()
-async def search_scienceon_tech_trends(query: str, max_results: int = 10) -> str:
+async def search_scienceon_tech_trends(query: str, max_results: int = 10, include_body: bool = True) -> str:
     """
     KISTI ScienceON에서 기술트렌드 토픽을 검색합니다.
     특정 기술 키워드/토픽 중심의 트렌드 분석 서비스입니다.
@@ -4001,16 +4238,17 @@ async def search_scienceon_tech_trends(query: str, max_results: int = 10) -> str
     Args:
         query: 검색할 키워드
         max_results: 최대 결과 수 (기본값: 10)
+        include_body: 정의 등 긴 텍스트 포함 여부 (기본값: True). False면 정의를 제외합니다.
 
     Returns:
         기술트렌드 토픽 목록 (트렌드명, 연관키워드, 정의, ContentURL, PdfURL)
     """
     if search_service is None:
         return _SCIENCEON_CRED_MSG
-    return await search_service.search_tech_trends(query, max_results)
+    return await search_service.search_tech_trends(query, max_results, include_body)
 
 @mcp.tool()
-async def search_scienceon_weekly_news(date: str, max_results: int = 20) -> str:
+async def search_scienceon_weekly_news(date: str, max_results: int = 20, include_body: bool = True) -> str:
     """
     KISTI ScienceON에서 금주의 과학기술뉴스를 조회합니다.
     주차별로 신뢰성 높은 국내외 과학기술뉴스를 제공합니다.
@@ -4018,13 +4256,14 @@ async def search_scienceon_weekly_news(date: str, max_results: int = 20) -> str:
     Args:
         date: 조회 날짜 (형식: YYYYMMDD, 예: "20250224"). 해당 날짜가 포함된 주의 뉴스를 반환합니다.
         max_results: 최대 결과 수 (기본값: 20)
+        include_body: 내용 등 긴 텍스트 포함 여부 (기본값: True). False면 내용을 제외합니다.
 
     Returns:
         해당 주의 과학기술뉴스 목록 (제목, 내용요약, 분류, 원문URL)
     """
     if search_service is None:
         return _SCIENCEON_CRED_MSG
-    return await search_service.search_weekly_news(date, max_results)
+    return await search_service.search_weekly_news(date, max_results, include_body)
 
 # NTIS MCP 도구들
 @mcp.tool()
