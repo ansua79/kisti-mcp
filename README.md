@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/ansua79-kisti-mcp-badge.png)](https://mseep.ai/app/ansua79-kisti-mcp)
+
 # *KISTI-MCP v0.3.32.2*
 
 KISTI-MCP는 한국과학기술정보연구원(KISTI)에서 서비스하는 ScienceON(과학기술 지식인프라), NTIS(국가과학기술지식정보서비스), DataON(국가연구데이터플랫폼) 등 다양한 플랫폼의 OpenAPI를 활용할 수 있는 MCP 서버입니다. 
